@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "pages/api/generate-single.js": {
+      "maxDuration": 60
+    }
+  }
+}
