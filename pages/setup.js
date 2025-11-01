@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import styles from '../styles/Setup.module.css';
@@ -16,6 +16,23 @@ export default function Setup() {
   });
   const [errors, setErrors] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasExistingSession, setHasExistingSession] = useState(false);
+
+  // Load existing session data on mount to pre-fill the form
+  useEffect(() => {
+    const session = sessionManager.loadSession();
+    if (session) {
+      // Pre-fill form with existing session values
+      setText(session.originalText || '');
+      setAdjectives(session.adjectives || {
+        yPositive: '',
+        yNegative: '',
+        xPositive: '',
+        xNegative: ''
+      });
+      setHasExistingSession(true);
+    }
+  }, []);
 
   const handleAdjectiveChange = (key, value) => {
     setAdjectives(prev => ({ ...prev, [key]: value }));
@@ -35,13 +52,25 @@ export default function Setup() {
     setErrors([]);
     setIsSubmitting(true);
 
-    // Initialize session
-    sessionManager.initSession(text.trim(), {
+    // Check if we need to reinitialize the session
+    const currentSession = sessionManager.loadSession();
+    const trimmedText = text.trim();
+    const trimmedAdjectives = {
       yPositive: adjectives.yPositive.trim(),
       yNegative: adjectives.yNegative.trim(),
       xPositive: adjectives.xPositive.trim(),
       xNegative: adjectives.xNegative.trim()
-    });
+    };
+
+    // Only reinitialize if the text or adjectives have changed
+    const hasChanges = !currentSession || 
+      currentSession.originalText !== trimmedText ||
+      JSON.stringify(currentSession.adjectives) !== JSON.stringify(trimmedAdjectives);
+
+    if (hasChanges) {
+      // Initialize new session with the current form values
+      sessionManager.initSession(trimmedText, trimmedAdjectives);
+    }
 
     // Navigate to generation page
     router.push('/generate');
@@ -151,6 +180,34 @@ export default function Setup() {
                   {error}
                 </p>
               ))}
+            </div>
+          )}
+
+          {/* Session Status Info */}
+          {hasExistingSession && (
+            <div className={styles.sessionInfo}>
+              <p>
+                {(() => {
+                  const currentSession = sessionManager.loadSession();
+                  const trimmedText = text.trim();
+                  const trimmedAdjectives = {
+                    yPositive: adjectives.yPositive.trim(),
+                    yNegative: adjectives.yNegative.trim(),
+                    xPositive: adjectives.xPositive.trim(),
+                    xNegative: adjectives.xNegative.trim()
+                  };
+                  
+                  const hasChanges = !currentSession || 
+                    currentSession.originalText !== trimmedText ||
+                    JSON.stringify(currentSession.adjectives) !== JSON.stringify(trimmedAdjectives);
+                  
+                  if (hasChanges) {
+                    return "⚠️ Clicking 'Generate Variations' will start a new session with these values.";
+                  } else {
+                    return "✓ Continue with existing session. Change values and click 'Generate Variations' to start over.";
+                  }
+                })()}
+              </p>
             </div>
           )}
 

@@ -26,7 +26,7 @@ const Footer = () => {
           rel="noopener noreferrer"
           style={linkStyle}
         >
-          Claude Sonnet 4.5
+          Claude Haiku 4.5
         </a>
       </p>
       <p style={{ marginTop: '0.5rem' }}>

@@ -34,18 +34,8 @@ export default function Generate() {
       adjectives: loadedSession.adjectives
     });
     
-    // Check if this is a new session (different inputs than before)
-    const isNewSession = sessionIdRef.current && sessionIdRef.current !== newSessionId;
-    
-    // If it's a new session, clear old generations
-    if (isNewSession) {
-      // Reset the session with new data
-      sessionManager.initSession(loadedSession.originalText, loadedSession.adjectives);
-      const freshSession = sessionManager.loadSession();
-      setSession(freshSession);
-      sessionIdRef.current = newSessionId;
-      isGeneratingRef.current = false;
-    } else if (!sessionIdRef.current) {
+    // Store the session ID for tracking
+    if (!sessionIdRef.current) {
       sessionIdRef.current = newSessionId;
     }
     

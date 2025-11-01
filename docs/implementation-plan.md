@@ -11,7 +11,7 @@ Browser JavaScript
 API: /api/generate-single.js (ONE coordinate at a time)
     ↓ 5-15 seconds per call
     ↓
-Claude Sonnet 4.5 API
+Claude Haiku 4.5 API
 ```
 
 **Why this works on Vercel Pro:**

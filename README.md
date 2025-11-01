@@ -1,6 +1,6 @@
 # Coordinate Plane Text Transformer
 
-An interactive web application that transforms text along two adjective dimensions using Claude Sonnet 4.5 API. Explore 121 AI-generated variations of your text in a visual coordinate plane.
+An interactive web application that transforms text along two adjective dimensions using Claude Haiku 4.5 API. Explore 121 AI-generated variations of your text in a visual coordinate plane.
 
 ## Features
 
@@ -15,7 +15,7 @@ An interactive web application that transforms text along two adjective dimensio
 
 - **Framework**: Next.js 14.1.4
 - **React**: 18.x with Hooks
-- **AI Model**: Claude Sonnet 4.5 (Anthropic)
+- **AI Model**: Claude Haiku 4.5 (Anthropic)
 - **Styling**: CSS Modules
 - **Deployment**: Vercel-ready
 
@@ -100,11 +100,11 @@ The app uses client-side orchestration to avoid Vercel timeout limits:
 
 ## API Cost Estimation
 
-Using Claude Sonnet 4.5:
-- **Per session**: ~$0.32 (121 variations)
-- **Input**: ~18,000 tokens = $0.054
-- **Output**: ~18,000 tokens = $0.27
-- **100 users/day**: ~$32/day
+Using Claude Haiku 4.5:
+- **Per session**: ~$0.11 (121 variations)
+- **Input**: ~18,000 tokens = $0.018 (at $1 per million tokens)
+- **Output**: ~18,000 tokens = $0.090 (at $5 per million tokens)
+- **100 users/day**: ~$11/day
 
 ## Deployment to Vercel
 
@@ -116,7 +116,7 @@ Using Claude Sonnet 4.5:
 
 ## Configuration
 
-- **Model**: Claude Sonnet 4.5 (`claude-sonnet-4-5-20250929`)
+- **Model**: Claude Haiku 4.5 (`claude-haiku-4-5-20251001`)
 - **Max tokens**: 1000 per generation
 - **Timeout**: 60 seconds per coordinate
 - **Batch size**: 2 parallel requests (reduced to avoid API overload)
