@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import Link from 'next/link';
 import styles from '../styles/Home.module.css';
 import Footer from '../public/Footer';
 import { sessionManager } from '../utils/sessionManager';
@@ -344,6 +345,15 @@ export default function Explore() {
       </Head>
 
       <main className={styles.main}>
+        <div className={styles.navigation}>
+          <Link href="/setup" className={styles.navLink}>
+            ← Setup
+          </Link>
+          <Link href="/bridge-setup" className={styles.navLink}>
+            Text Bridge →
+          </Link>
+        </div>
+        
         <div className={styles.messageDisplayContainer}>
           <div className={styles.messageDisplayWrapper}>
             <div className={styles.messageDisplay}>

@@ -157,24 +157,15 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { text, adjectives, coordinate, selectedModel = 'haiku-4.5' } = req.body;
-  
-  // Validate inputs
-  if (!text || !adjectives || !coordinate) {
-    return res.status(400).json({ 
-      error: 'Missing required fields',
-      required: ['text', 'adjectives', 'coordinate']
-    });
-  }
-
-  // Validate adjectives structure
-  if (!adjectives.yPositive || !adjectives.yNegative || 
-      !adjectives.xPositive || !adjectives.xNegative) {
-    return res.status(400).json({ 
-      error: 'Invalid adjectives structure',
-      required: ['yPositive', 'yNegative', 'xPositive', 'xNegative']
-    });
-  }
+  const { 
+    mode, 
+    text, 
+    adjectives, 
+    coordinate, 
+    textLeft, 
+    textRight,
+    selectedModel = 'haiku-4.5' 
+  } = req.body;
 
   // Get model configuration
   const modelConfig = MODEL_CONFIGS[selectedModel];
@@ -204,8 +195,39 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Build the prompt for this specific coordinate
-    const prompt = buildPrompt(text, coordinate, adjectives);
+    let prompt;
+    
+    if (mode === 'bridge') {
+      // Bridge mode: use textLeft and textRight
+      if (!textLeft || !textRight) {
+        return res.status(400).json({ 
+          error: 'Bridge mode requires textLeft and textRight' 
+        });
+      }
+      
+      // Import bridge prompt builder
+      const { buildBridgePrompt } = require('../../utils/bridgePromptBuilder');
+      prompt = buildBridgePrompt(textLeft, textRight);
+      
+    } else {
+      // Original coordinate mode
+      if (!text || !adjectives || !coordinate) {
+        return res.status(400).json({ 
+          error: 'Coordinate mode requires text, adjectives, coordinate' 
+        });
+      }
+      
+      // Validate adjectives structure
+      if (!adjectives.yPositive || !adjectives.yNegative || 
+          !adjectives.xPositive || !adjectives.xNegative) {
+        return res.status(400).json({ 
+          error: 'Invalid adjectives structure',
+          required: ['yPositive', 'yNegative', 'xPositive', 'xNegative']
+        });
+      }
+      
+      prompt = buildPrompt(text, coordinate, adjectives);
+    }
     
     // Call appropriate API based on provider
     let result;
@@ -220,7 +242,7 @@ export default async function handler(req, res) {
     // Return the generated text with metadata
     return res.status(200).json({
       success: true,
-      coordinate,
+      coordinate: mode === 'bridge' ? undefined : coordinate,
       text: result.text,
       usage: result.usage,
       model: selectedModel
@@ -231,7 +253,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ 
       error: 'Internal server error',
       message: error.message,
-      coordinate,
+      coordinate: mode === 'bridge' ? undefined : coordinate,
       model: selectedModel
     });
   }

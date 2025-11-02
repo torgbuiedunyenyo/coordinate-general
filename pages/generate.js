@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import Link from 'next/link';
 import styles from '../styles/Generate.module.css';
 import { sessionManager } from '../utils/sessionManager';
 import { getRingCoordinates, getRingNumber } from '../utils/ringGenerator';
@@ -272,6 +273,15 @@ export default function Generate() {
       </Head>
 
       <main className={styles.main}>
+        <div className={styles.navigation}>
+          <Link href="/setup" className={styles.navLink}>
+            ← Setup
+          </Link>
+          <Link href="/bridge-setup" className={styles.navLink}>
+            Text Bridge →
+          </Link>
+        </div>
+        
         <h1 className={styles.title}>Generating Text Variations</h1>
         
         <div className={styles.progressInfo}>
