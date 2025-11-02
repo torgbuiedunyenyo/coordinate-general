@@ -19,7 +19,7 @@ const MODEL_CONFIGS = {
   'gemini-2.5-flash': {
     provider: 'google',
     model: 'gemini-2.5-flash',
-    maxTokens: 1000
+    maxTokens: 8192  // Increased token limit for Gemini
   }
 };
 
@@ -59,48 +59,94 @@ async function callAnthropicAPI(prompt, modelConfig) {
 }
 
 async function callGeminiAPI(prompt, modelConfig) {
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${modelConfig.model}:generateContent`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': process.env.GOOGLE_API_KEY
-      },
-      body: JSON.stringify({
-        contents: [
+  const apiKey = process.env.GOOGLE_API_KEY;
+  
+  if (!apiKey) {
+    throw new Error('Google API key is not configured');
+  }
+  
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelConfig.model}:generateContent?key=${apiKey}`;
+  
+  const requestBody = {
+    contents: [
+      {
+        parts: [
           {
-            parts: [
-              {
-                text: prompt
-              }
-            ]
+            text: prompt
           }
-        ],
-        generationConfig: {
-          maxOutputTokens: modelConfig.maxTokens,
-          temperature: 0.7,
-        }
-      })
+        ]
+      }
+    ],
+    generationConfig: {
+      maxOutputTokens: modelConfig.maxTokens,
+      temperature: 0.7,
+      candidateCount: 1,
+      topK: 40,
+      topP: 0.95
     }
-  );
+  };
+  
+  console.log('Calling Gemini API with model:', modelConfig.model);
+  
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(requestBody)
+  });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error?.message || 'Gemini API error');
+    const errorText = await response.text();
+    console.error('Gemini API error response:', response.status, errorText);
+    
+    let errorMessage = 'Gemini API error';
+    try {
+      const errorJson = JSON.parse(errorText);
+      errorMessage = errorJson.error?.message || errorJson.message || errorMessage;
+    } catch (e) {
+      errorMessage = `Gemini API error (${response.status}): ${errorText.substring(0, 200)}`;
+    }
+    
+    throw new Error(errorMessage);
   }
 
   const data = await response.json();
   
+  // Check if response has the expected structure
+  if (!data.candidates || !data.candidates[0]) {
+    console.error('Unexpected Gemini response structure:', JSON.stringify(data));
+    throw new Error('Invalid response from Gemini API');
+  }
+  
   // Extract text from Gemini's response format
-  const generatedText = data.candidates[0].content.parts[0].text.trim();
+  const candidate = data.candidates[0];
+  
+  // Check for finish reason issues
+  if (candidate.finishReason === 'MAX_TOKENS') {
+    console.error('Gemini hit max token limit. Response:', JSON.stringify(candidate));
+    throw new Error('Gemini API hit token limit. Try shorter text or simpler transformations.');
+  }
+  
+  if (candidate.finishReason === 'SAFETY') {
+    console.error('Gemini blocked for safety. Response:', JSON.stringify(candidate));
+    throw new Error('Gemini API blocked the content for safety reasons.');
+  }
+  
+  // Check for actual content
+  if (!candidate.content || !candidate.content.parts || !candidate.content.parts[0] || !candidate.content.parts[0].text) {
+    console.error('Missing text content in Gemini response:', JSON.stringify(candidate));
+    throw new Error(`Gemini API returned no text content (finish reason: ${candidate.finishReason || 'unknown'})`);
+  }
+  
+  const generatedText = candidate.content.parts[0].text.trim();
   
   return {
     text: generatedText,
     usage: {
-      // Gemini doesn't provide token counts in same format
-      inputTokens: null,
-      outputTokens: null
+      // Gemini provides token counts in usageMetadata
+      inputTokens: data.usageMetadata?.promptTokenCount || null,
+      outputTokens: data.usageMetadata?.candidatesTokenCount || null
     }
   };
 }

@@ -43,6 +43,26 @@ button, input, select, textarea {
     sans-serif;
 }
 
+/* Normalize select elements across browsers */
+select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-color: white;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.5rem;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+/* Prevent iOS from zooming in on form inputs */
+@media screen and (max-width: 768px) {
+  select, input, textarea {
+    font-size: 16px !important;
+  }
+}
+
 h1, h2, h3 {
   font-weight: 600;
   color: var(--ink);
