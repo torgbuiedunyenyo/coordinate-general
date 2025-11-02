@@ -69,10 +69,11 @@ export const sessionManager = {
   },
 
   // Initialize new session
-  initSession: (originalText, adjectives) => {
+  initSession: (originalText, adjectives, selectedModel = 'haiku-4.5') => {
     const session = {
       originalText,
       adjectives,
+      selectedModel, // Track which AI model is selected
       generations: {},
       progress: {
         currentRing: 0,

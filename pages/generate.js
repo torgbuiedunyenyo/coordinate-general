@@ -194,7 +194,8 @@ export default function Generate() {
           body: JSON.stringify({
             text: sessionData.originalText,
             adjectives: sessionData.adjectives,
-            coordinate
+            coordinate,
+            selectedModel: sessionData.selectedModel || 'haiku-4.5' // Pass selected model to API
           })
         });
 

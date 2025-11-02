@@ -126,7 +126,7 @@
 }
 
 .submitButton {
-  width: 100%;
+  flex: 1;
   padding: 1rem;
   background-color: var(--ink-blue);
   color: white;
@@ -173,6 +173,35 @@
   margin: 0.5rem 0;
 }
 
+/* Submit Section Styles */
+.submitSection {
+  display: flex;
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.modelSelect {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 1rem;
+  background: white;
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color 0.2s;
+  min-width: 180px;
+}
+
+.modelSelect:hover {
+  border-color: var(--ink-blue);
+}
+
+.modelSelect:focus {
+  outline: none;
+  border-color: var(--ink-blue);
+}
+
 @media (max-width: 768px) {
   .adjectivesGrid {
     grid-template-columns: 1fr;
@@ -188,5 +217,17 @@
   
   .form {
     padding: 1.5rem;
+  }
+  
+  .submitSection {
+    flex-direction: column;
+  }
+  
+  .modelSelect {
+    width: 100%;
+  }
+  
+  .submitButton {
+    width: 100%;
   }
 }

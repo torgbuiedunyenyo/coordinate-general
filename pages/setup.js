@@ -8,6 +8,7 @@ import { validatePromptInputs } from '../utils/promptBuilder';
 export default function Setup() {
   const router = useRouter();
   const [text, setText] = useState('');
+  const [selectedModel, setSelectedModel] = useState('haiku-4.5'); // Track selected AI model
   const [adjectives, setAdjectives] = useState({
     yPositive: '',
     yNegative: '',
@@ -18,6 +19,28 @@ export default function Setup() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasExistingSession, setHasExistingSession] = useState(false);
   const [storageWarning, setStorageWarning] = useState(null);
+
+  // Model configurations
+  const models = [
+    {
+      id: 'haiku-4.5',
+      name: 'Claude Haiku 4.5',
+      description: 'Fast & cost-effective ($0.25/$1.25 per M tokens)',
+      provider: 'anthropic'
+    },
+    {
+      id: 'sonnet-4.5',
+      name: 'Claude Sonnet 4.5',
+      description: 'Advanced reasoning ($3/$15 per M tokens)',
+      provider: 'anthropic'
+    },
+    {
+      id: 'gemini-2.5-flash',
+      name: 'Gemini 2.5 Flash',
+      description: 'Google\'s fast multimodal model',
+      provider: 'google'
+    }
+  ];
 
   // Load existing session data on mount to pre-fill the form
   useEffect(() => {
@@ -31,6 +54,7 @@ export default function Setup() {
         xPositive: '',
         xNegative: ''
       });
+      setSelectedModel(session.selectedModel || 'haiku-4.5'); // Load saved model
       setHasExistingSession(true);
     }
 
@@ -69,14 +93,15 @@ export default function Setup() {
       xNegative: adjectives.xNegative.trim()
     };
 
-    // Only reinitialize if the text or adjectives have changed
+    // Only reinitialize if the text, adjectives, or model have changed
     const hasChanges = !currentSession || 
       currentSession.originalText !== trimmedText ||
-      JSON.stringify(currentSession.adjectives) !== JSON.stringify(trimmedAdjectives);
+      JSON.stringify(currentSession.adjectives) !== JSON.stringify(trimmedAdjectives) ||
+      currentSession.selectedModel !== selectedModel;
 
     if (hasChanges) {
-      // Initialize new session with the current form values
-      sessionManager.initSession(trimmedText, trimmedAdjectives);
+      // Initialize new session with the current form values and selected model
+      sessionManager.initSession(trimmedText, trimmedAdjectives, selectedModel);
     }
 
     // Navigate to generation page
@@ -215,7 +240,8 @@ export default function Setup() {
                   
                   const hasChanges = !currentSession || 
                     currentSession.originalText !== trimmedText ||
-                    JSON.stringify(currentSession.adjectives) !== JSON.stringify(trimmedAdjectives);
+                    JSON.stringify(currentSession.adjectives) !== JSON.stringify(trimmedAdjectives) ||
+                    currentSession.selectedModel !== selectedModel;
                   
                   if (hasChanges) {
                     return "⚠️ Clicking 'Generate Variations' will start a new session with these values.";
@@ -227,14 +253,27 @@ export default function Setup() {
             </div>
           )}
 
-          {/* Submit Button */}
-          <button
-            type="submit"
-            className={styles.submitButton}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? 'Starting...' : 'Generate Variations'}
-          </button>
+          {/* Model Selection and Submit Button */}
+          <div className={styles.submitSection}>
+            <select 
+              value={selectedModel} 
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className={styles.modelSelect}
+            >
+              {models.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="submit"
+              className={styles.submitButton}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Starting...' : 'Generate Variations'}
+            </button>
+          </div>
         </form>
 
         <div className={styles.infoBox}>
