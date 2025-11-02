@@ -249,7 +249,7 @@ export default function Explore() {
 
     } catch (error) {
       console.error('Error generating coordinate:', error);
-      setCurrentText('Error generating this variation. Please try another coordinate.');
+      setCurrentText('Error generating this variation. Try another coordinate.');
     } finally {
       setIsGenerating(false);
       // Final scroll position restore

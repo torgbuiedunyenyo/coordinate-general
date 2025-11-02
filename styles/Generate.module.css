@@ -1,7 +1,7 @@
 .container {
   min-height: 100vh;
   padding: 2rem;
-  background-color: #f8f9fa;
+  background-color: var(--paper);
 }
 
 .main {
@@ -13,14 +13,16 @@
   text-align: center;
   padding: 4rem;
   font-size: 1.2rem;
-  color: #6c757d;
+  color: var(--muted);
+  font-family: 'Crimson Text', Georgia, serif;
 }
 
 .title {
   font-size: 2.5rem;
-  color: #343a40;
+  color: var(--ink);
   text-align: center;
   margin-bottom: 2rem;
+  font-weight: 600;
 }
 
 .progressInfo {
@@ -32,32 +34,34 @@
 
 .progressText,
 .ringText {
+  font-family: 'Inter', -apple-system, sans-serif;
   font-size: 1.1rem;
-  color: #495057;
+  color: var(--muted);
   margin: 0;
 }
 
 .progressBar {
   width: 100%;
-  height: 30px;
-  background-color: #e9ecef;
-  border-radius: 15px;
+  height: 24px;
+  background-color: var(--border);
+  border-radius: 4px;
   overflow: hidden;
   margin-bottom: 2rem;
-  box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+  border: 1px solid var(--border);
 }
 
 .progressFill {
   height: 100%;
-  background: linear-gradient(90deg, #4c6ef5, #51cf66);
+  background: var(--ink-blue);
   transition: width 0.3s ease;
 }
 
 .gridContainer {
   background: white;
   padding: 2rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
   margin-bottom: 2rem;
 }
 
@@ -78,6 +82,7 @@
   width: 48px;
   height: 48px;
   transition: background-color 0.3s ease;
+  border: 1px solid var(--border);
   border-radius: 2px;
   flex-shrink: 0;
 }
@@ -94,74 +99,81 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 0.9rem;
+  color: var(--muted);
 }
 
 .legendColor {
   width: 24px;
   height: 24px;
   border-radius: 2px;
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--border);
 }
 
 .errorBox {
-  background-color: #fee;
-  border: 1px solid #fcc;
+  background-color: #FFF5F5;
+  border: 1px solid var(--ink-red);
   border-radius: 4px;
   padding: 1rem;
   margin-bottom: 1.5rem;
-  color: #dc3545;
+  color: var(--ink-red);
   text-align: center;
+  font-family: 'Inter', -apple-system, sans-serif;
 }
 
 .exploreSection {
   text-align: center;
   padding: 2rem;
-  background: #e7f5ff;
-  border-radius: 8px;
-  border-left: 4px solid #4c6ef5;
+  background: var(--hover);
+  border-radius: 4px;
+  border-left: 4px solid var(--ink-blue);
   margin-bottom: 1rem;
 }
 
 .exploreText {
   font-size: 1.1rem;
-  color: #495057;
+  color: var(--muted);
   margin-bottom: 1.5rem;
+  font-family: 'Crimson Text', Georgia, serif;
 }
 
 .exploreButton {
   padding: 1rem 2rem;
-  background-color: #4c6ef5;
+  background-color: var(--ink-blue);
   color: white;
   border: none;
   border-radius: 4px;
   font-size: 1.1rem;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   transition: background-color 0.2s;
 }
 
 .exploreButton:hover {
-  background-color: #3b5bdb;
+  background-color: var(--ink);
 }
 
 .completeSection {
   text-align: center;
   padding: 3rem;
-  background: #d3f9d8;
-  border-radius: 8px;
-  border-left: 4px solid #51cf66;
+  background: var(--hover);
+  border-radius: 4px;
+  border-left: 4px solid var(--ink-blue);
 }
 
 .completeTitle {
-  color: #2b8a3e;
+  color: var(--ink-blue);
   margin-bottom: 1rem;
   font-size: 2rem;
+  font-weight: 600;
 }
 
 .completeText {
   font-size: 1.1rem;
-  color: #495057;
+  color: var(--muted);
   margin-bottom: 1.5rem;
+  font-family: 'Crimson Text', Georgia, serif;
 }
 
 @media (max-width: 768px) {
