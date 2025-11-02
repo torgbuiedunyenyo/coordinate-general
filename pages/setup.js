@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import Link from 'next/link';
 import styles from '../styles/Setup.module.css';
 import { sessionManager } from '../utils/sessionManager';
 import { validatePromptInputs } from '../utils/promptBuilder';
@@ -120,6 +121,12 @@ export default function Setup() {
       </Head>
 
       <main className={styles.main}>
+        <div className={styles.navigation}>
+          <Link href="/bridge-setup" className={styles.navLink}>
+            Try Text Bridge →
+          </Link>
+        </div>
+        
         <h1 className={styles.title}>Coordinate Plane Text Transformer</h1>
         <p className={styles.description}>
           Transform your text along two dimensions of style and tone.
