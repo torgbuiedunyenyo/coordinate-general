@@ -104,16 +104,20 @@ export default function BridgeSetup() {
       </Head>
 
       <main className={styles.main}>
-        <div className={styles.navigation}>
+        {/* Feature Navigation */}
+        <nav className={styles.featureNav}>
           <Link href="/setup" className={styles.navLink}>
-            ← Coordinate Plane
+            Coordinate Plane
           </Link>
-          {hasExistingSession && (
-            <Link href="/bridge-explore" className={styles.navLink}>
-              Bridge Explore →
-            </Link>
-          )}
-        </div>
+          <span className={styles.separator}>|</span>
+          <Link href="/bridge-setup" className={`${styles.navLink} ${styles.active}`}>
+            Bridge
+          </Link>
+          <span className={styles.separator}>|</span>
+          <Link href="/filters" className={styles.navLink}>
+            Filters
+          </Link>
+        </nav>
 
         <h1 className={styles.title}>Text Bridge</h1>
         <p className={styles.description}>
