@@ -187,10 +187,19 @@ export default function Explore() {
   const updateText = async (coordinate, shouldPreload = true) => {
     if (!session) return;
 
+    // Preserve scroll position before updating
+    const scrollY = window.scrollY;
+    const scrollX = window.scrollX;
+
     // Check if we have this generation
     if (session.generations[coordinate]) {
       setCurrentText(session.generations[coordinate]);
       setIsGenerating(false); // Reset loading state when showing existing text
+
+      // Restore scroll position after React re-render
+      requestAnimationFrame(() => {
+        window.scrollTo(scrollX, scrollY);
+      });
 
       // Preload adjacent coordinates in background
       if (shouldPreload) {
@@ -228,6 +237,11 @@ export default function Explore() {
       setSession(updatedSession);
       setCurrentText(result.text);
 
+      // Restore scroll position after React re-render
+      requestAnimationFrame(() => {
+        window.scrollTo(scrollX, scrollY);
+      });
+
       // Preload adjacent coordinates in background
       if (shouldPreload) {
         preloadAdjacentCoordinates(coordinate);
@@ -238,6 +252,10 @@ export default function Explore() {
       setCurrentText('Error generating this variation. Please try another coordinate.');
     } finally {
       setIsGenerating(false);
+      // Final scroll position restore
+      requestAnimationFrame(() => {
+        window.scrollTo(scrollX, scrollY);
+      });
     }
   };
 
@@ -327,15 +345,17 @@ export default function Explore() {
 
       <main className={styles.main}>
         <div className={styles.messageDisplayContainer}>
-          <div className={styles.messageDisplay}>
-            {isGenerating ? (
-              <div className={styles.generatingIndicator}>
-                <div className={styles.spinner}></div>
-                <p>Generating...</p>
-              </div>
-            ) : (
-              currentText || "Move the cursor to see variations"
-            )}
+          <div className={styles.messageDisplayWrapper}>
+            <div className={styles.messageDisplay}>
+              {isGenerating ? (
+                <div className={styles.generatingIndicator}>
+                  <div className={styles.spinner}></div>
+                  <p>Generating...</p>
+                </div>
+              ) : (
+                currentText || "Move the cursor to see variations"
+              )}
+            </div>
           </div>
         </div>
 
