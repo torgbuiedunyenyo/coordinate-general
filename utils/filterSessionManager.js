@@ -75,6 +75,7 @@ export const filterSessionManager = {
       selectedModel,
       filterStackInitialized: true,
       filters,
+      layers: [], // Support both filters and layers for compatibility
       cache: {
         'original': originalText
       },

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import styles from '../styles/Filters.module.css';
@@ -7,71 +7,65 @@ import { AVAILABLE_FILTERS, validateFilterInputs, calculateCostEstimate } from '
 import { 
   buildCacheKey, 
   getCacheKeyForStep, 
-  calculateGenerationPlan,
-  getFilterChainSummary 
+  calculateGenerationPlan
 } from '../utils/filterCacheManager';
 
 export default function Filters() {
   const [originalText, setOriginalText] = useState('');
   const [selectedModel, setSelectedModel] = useState('haiku-4.5');
   const [filterStackInitialized, setFilterStackInitialized] = useState(false);
-  const [filters, setFilters] = useState(
-    AVAILABLE_FILTERS.map(f => ({
-      ...f,
-      enabled: false,
-      intensity: f.defaultIntensity,
-      order: null
-    }))
-  );
+  const [layers, setLayers] = useState([]);
+  const [availableFilters, setAvailableFilters] = useState(AVAILABLE_FILTERS);
   const [cache, setCache] = useState({});
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [currentGeneratingStep, setCurrentGeneratingStep] = useState(0);
-  const [totalSteps, setTotalSteps] = useState(0);
-  const [generatingKeys, setGeneratingKeys] = useState([]);
-  const [finalResult, setFinalResult] = useState(null);
-  const [pipelineExpanded, setPipelineExpanded] = useState(false);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [unsavedChangeCount, setUnsavedChangeCount] = useState(0);
+  const [currentDisplayText, setCurrentDisplayText] = useState('');
+  const [generatingLayers, setGeneratingLayers] = useState(new Set());
   const [totalTokens, setTotalTokens] = useState({ input: 0, output: 0 });
   const [errors, setErrors] = useState([]);
-  const [error, setError] = useState(null);
-  const [failedSteps, setFailedSteps] = useState({});
   const [storageWarning, setStorageWarning] = useState(null);
-  const [expandedFilters, setExpandedFilters] = useState({});
+  const [draggedLayer, setDraggedLayer] = useState(null);
+  const [dragOverIndex, setDragOverIndex] = useState(null);
+  const [draggedFilter, setDraggedFilter] = useState(null);
+  const [isDraggingOverLayers, setIsDraggingOverLayers] = useState(false);
+  const generationQueueRef = useRef([]);
+  const isGeneratingRef = useRef(false);
+  const abortControllerRef = useRef(null);
 
   // Model configurations
   const models = [
     {
       id: 'haiku-4.5',
       name: 'Claude Haiku 4.5',
-      description: 'Fast & cost-effective ($0.25/$1.25 per M tokens)',
       provider: 'anthropic'
     },
     {
       id: 'sonnet-4.5',
       name: 'Claude Sonnet 4.5',
-      description: 'Advanced reasoning ($3/$15 per M tokens)',
       provider: 'anthropic'
     },
     {
       id: 'gemini-2.5-flash',
       name: 'Gemini 2.5 Flash',
-      description: 'Google\'s fast multimodal model',
       provider: 'google'
     }
   ];
 
-  // Load existing session on mount
+  // Load session on mount
   useEffect(() => {
     const session = filterSessionManager.loadSession();
-    if (session) {
+    if (session && session.filterStackInitialized) {
       setOriginalText(session.originalText || '');
       setSelectedModel(session.selectedModel || 'haiku-4.5');
-      setFilterStackInitialized(session.filterStackInitialized || false);
-      setFilters(session.filters || filters);
-      setCache(session.cache || {});
-      setFinalResult(session.finalResult || null);
+      setFilterStackInitialized(true);
+      setCache(session.cache || { original: session.originalText });
       setTotalTokens(session.totalTokens || { input: 0, output: 0 });
+      
+      // Reconstruct layers from session
+      if (session.layers) {
+        setLayers(session.layers);
+        // Remove used filters from available
+        const usedIds = session.layers.map(l => l.id);
+        setAvailableFilters(AVAILABLE_FILTERS.filter(f => !usedIds.includes(f.id)));
+      }
     }
 
     const warning = filterSessionManager.getStorageWarning();
@@ -80,15 +74,33 @@ export default function Filters() {
     }
   }, []);
 
-  // Get active filters in order
-  const getActiveFilters = useCallback(() => {
-    return filters
-      .filter(f => f.enabled)
-      .sort((a, b) => a.order - b.order);
-  }, [filters]);
+  // Update display text whenever cache or layers change
+  useEffect(() => {
+    if (!filterStackInitialized) return;
+    
+    // Find the most complete text available
+    const activeLayers = layers.filter(l => l.enabled);
+    
+    if (activeLayers.length === 0) {
+      setCurrentDisplayText(cache['original'] || originalText);
+      return;
+    }
+    
+    // Try to find the longest cached chain
+    for (let i = activeLayers.length - 1; i >= 0; i--) {
+      const cacheKey = getCacheKeyForStep(activeLayers, i);
+      if (cache[cacheKey]) {
+        setCurrentDisplayText(cache[cacheKey]);
+        return;
+      }
+    }
+    
+    // Fallback to original
+    setCurrentDisplayText(cache['original'] || originalText);
+  }, [cache, layers, originalText, filterStackInitialized]);
 
-  // Handle Load Filters button
-  const handleLoadFilters = () => {
+  // Handle text input and initialization
+  const handleInitialize = () => {
     const validationErrors = validateFilterInputs(originalText);
     
     if (validationErrors.length > 0) {
@@ -98,90 +110,175 @@ export default function Filters() {
 
     setErrors([]);
     
-    // Initialize session
-    const initialFilters = filters.map(f => ({
-      ...f,
-      enabled: false,
-      order: null
-    }));
-    
-    filterSessionManager.initSession(originalText.trim(), selectedModel, initialFilters);
-    
-    setCache({ 'original': originalText.trim() });
+    const initialCache = { 'original': originalText.trim() };
+    setCache(initialCache);
     setFilterStackInitialized(true);
-    setFilters(initialFilters);
-    setHasUnsavedChanges(false);
-    setUnsavedChangeCount(0);
+    setCurrentDisplayText(originalText.trim());
+    setLayers([]);
+    setAvailableFilters(AVAILABLE_FILTERS);
+    
+    // Save session
+    filterSessionManager.saveSession({
+      originalText: originalText.trim(),
+      selectedModel,
+      filterStackInitialized: true,
+      layers: [],
+      cache: initialCache,
+      totalTokens: { input: 0, output: 0 },
+      lastModified: new Date().toISOString()
+    });
   };
 
-  // Handle filter enable/disable
-  const handleFilterToggle = (filterId) => {
-    const newFilters = [...filters];
-    const filterIndex = newFilters.findIndex(f => f.id === filterId);
-    const filter = newFilters[filterIndex];
+  // Add filter as layer (at top, like Photoshop)
+  const addLayer = (filter, atIndex = 0) => {
+    const newLayer = {
+      ...filter,
+      enabled: true,
+      intensity: filter.defaultIntensity,
+      id: filter.id,
+      key: `${filter.id}-${Date.now()}` // Unique key for React
+    };
     
-    if (filter.enabled) {
-      // Disabling
-      filter.enabled = false;
-      filter.order = null;
-      
-      // Reorder remaining filters
-      newFilters.forEach(f => {
-        if (f.enabled && f.order > filter.order) {
-          f.order -= 1;
-        }
-      });
-    } else {
-      // Enabling
-      filter.enabled = true;
-      const enabledCount = newFilters.filter(f => f.enabled).length;
-      filter.order = enabledCount - 1; // 0-indexed
+    // Add at the beginning (top) by default
+    const newLayers = [...layers];
+    newLayers.splice(atIndex, 0, newLayer);
+    setLayers(newLayers);
+    setAvailableFilters(prev => prev.filter(f => f.id !== filter.id));
+    
+    // Save session and trigger generation
+    saveSessionAndRegenerate(newLayers);
+  };
+
+  // Remove layer
+  const removeLayer = (layerId) => {
+    const layer = layers.find(l => l.id === layerId);
+    const newLayers = layers.filter(l => l.id !== layerId);
+    setLayers(newLayers);
+    
+    if (layer) {
+      // Add back to available filters
+      const originalFilter = AVAILABLE_FILTERS.find(f => f.id === layer.id);
+      if (originalFilter) {
+        setAvailableFilters(prev => [...prev, originalFilter].sort((a, b) => {
+          // Keep original order
+          const aIndex = AVAILABLE_FILTERS.findIndex(f => f.id === a.id);
+          const bIndex = AVAILABLE_FILTERS.findIndex(f => f.id === b.id);
+          return aIndex - bIndex;
+        }));
+      }
     }
     
-    setFilters(newFilters);
-    setHasUnsavedChanges(true);
-    setUnsavedChangeCount(prev => prev + 1);
-    filterSessionManager.updateAllFilters(newFilters);
+    saveSessionAndRegenerate(newLayers);
   };
 
-  // Handle intensity change
-  const handleIntensityChange = (filterId, newIntensity) => {
-    const newFilters = [...filters];
-    const filterIndex = newFilters.findIndex(f => f.id === filterId);
-    newFilters[filterIndex].intensity = parseInt(newIntensity);
-    
-    setFilters(newFilters);
-    setHasUnsavedChanges(true);
-    setUnsavedChangeCount(prev => prev + 1);
-    filterSessionManager.updateAllFilters(newFilters);
+  // Toggle layer enabled/disabled
+  const toggleLayer = (layerId) => {
+    const newLayers = layers.map(l => 
+      l.id === layerId ? { ...l, enabled: !l.enabled } : l
+    );
+    setLayers(newLayers);
+    saveSessionAndRegenerate(newLayers);
   };
 
-  // Handle reordering
-  const handleReorder = (filterId, direction) => {
-    const newFilters = [...filters];
-    const enabledFilters = newFilters.filter(f => f.enabled);
+  // Change layer intensity
+  const changeLayerIntensity = (layerId, intensity) => {
+    const newLayers = layers.map(l => 
+      l.id === layerId ? { ...l, intensity: parseInt(intensity) } : l
+    );
+    setLayers(newLayers);
+    saveSessionAndRegenerate(newLayers);
+  };
+
+  // Drag and drop handlers for layers
+  const handleLayerDragStart = (e, index) => {
+    setDraggedLayer(index);
+    setDraggedFilter(null); // Clear any filter drag
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', 'layer'); // Mark as layer drag
+  };
+
+  const handleLayerDragOver = (e, index) => {
+    e.preventDefault();
+    e.stopPropagation(); // Prevent bubbling to parent
     
-    const currentFilter = enabledFilters.find(f => f.id === filterId);
-    if (!currentFilter) return;
+    // Only show drop zone if we're dragging a layer
+    if (draggedLayer !== null) {
+      e.dataTransfer.dropEffect = 'move';
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleLayerDragLeave = (e) => {
+    // Only clear if we're leaving the layer element itself
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setDragOverIndex(null);
+    }
+  };
+
+  const handleLayerDrop = (e, dropIndex) => {
+    e.preventDefault();
+    e.stopPropagation(); // Prevent bubbling to parent
     
-    const currentIndex = currentFilter.order;
-    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (draggedLayer !== null && draggedLayer !== dropIndex) {
+      // Moving an existing layer
+      const newLayers = [...layers];
+      const [movedLayer] = newLayers.splice(draggedLayer, 1);
+      
+      // Adjust drop index if we removed an item before it
+      const adjustedDropIndex = draggedLayer < dropIndex ? dropIndex - 1 : dropIndex;
+      newLayers.splice(adjustedDropIndex, 0, movedLayer);
+      
+      setLayers(newLayers);
+      saveSessionAndRegenerate(newLayers);
+    }
     
-    if (newIndex < 0 || newIndex >= enabledFilters.length) return;
+    // Clean up
+    setDraggedLayer(null);
+    setDragOverIndex(null);
+    setIsDraggingOverLayers(false);
+  };
+
+  const handleLayerDragEnd = () => {
+    setDraggedLayer(null);
+    setDragOverIndex(null);
+  };
+
+  // Drag handlers for filters
+  const handleFilterDragStart = (e, filter) => {
+    setDraggedFilter(filter);
+    e.dataTransfer.effectAllowed = 'copy';
+  };
+
+  const handleLayersAreaDragOver = (e) => {
+    // Only allow drop if we're dragging a filter (not a layer)
+    if (draggedFilter) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      setIsDraggingOverLayers(true);
+    }
+  };
+
+  const handleLayersAreaDragLeave = (e) => {
+    // Only set to false if we're leaving the entire layers area
+    if (e.currentTarget === e.target) {
+      setIsDraggingOverLayers(false);
+    }
+  };
+
+  const handleLayersAreaDrop = (e, dropIndex = 0) => {
+    if (!draggedFilter) return; // Only handle filter drops here
     
-    // Find filter to swap with
-    const swapFilter = enabledFilters.find(f => f.order === newIndex);
-    if (!swapFilter) return;
+    e.preventDefault();
+    setIsDraggingOverLayers(false);
     
-    // Swap orders
-    const temp = currentFilter.order;
-    currentFilter.order = swapFilter.order;
-    swapFilter.order = temp;
-    
-    setFilters(newFilters);
-    setHasUnsavedChanges(true);
-    setUnsavedChangeCount(prev => prev + 1);
-    filterSessionManager.updateAllFilters(newFilters);
+    // Adding a new filter from available filters
+    addLayer(draggedFilter, dropIndex);
+    setDraggedFilter(null);
+  };
+
+  const handleFilterDragEnd = () => {
+    setDraggedFilter(null);
+    setIsDraggingOverLayers(false);
   };
 
   // Generate single filter step
@@ -195,7 +292,8 @@ export default function Filters() {
         filterId,
         intensity,
         selectedModel: model
-      })
+      }),
+      signal: abortControllerRef.current?.signal
     });
     
     if (!response.ok) {
@@ -206,62 +304,45 @@ export default function Filters() {
     return await response.json();
   };
 
-  // Apply filter stack
-  const applyFilterStack = async () => {
-    const activeFilters = getActiveFilters();
-    
-    if (activeFilters.length === 0) {
-      setFinalResult(cache['original'] || originalText);
-      setHasUnsavedChanges(false);
-      setUnsavedChangeCount(0);
-      filterSessionManager.updateFinalResult(cache['original'] || originalText);
+  // Process generation queue
+  const processGenerationQueue = async () => {
+    if (isGeneratingRef.current || generationQueueRef.current.length === 0) {
       return;
     }
     
-    // Calculate generation plan
-    const generationPlan = calculateGenerationPlan(activeFilters, cache);
+    isGeneratingRef.current = true;
+    abortControllerRef.current = new AbortController();
     
-    if (generationPlan.length === 0) {
-      // Everything is cached
-      const finalKey = buildCacheKey(activeFilters);
-      setFinalResult(cache[finalKey]);
-      setHasUnsavedChanges(false);
-      setUnsavedChangeCount(0);
-      filterSessionManager.updateFinalResult(cache[finalKey]);
-      return;
-    }
-    
-    // Execute generation plan
-    setIsGenerating(true);
-    setCurrentGeneratingStep(0);
-    setTotalSteps(generationPlan.length);
-    setGeneratingKeys(generationPlan.map(p => p.cacheKey));
-    setFailedSteps({});
-    setError(null);
-    
-    let lastSuccessfulText = null;
-    
-    for (let i = 0; i < generationPlan.length; i++) {
-      const step = generationPlan[i];
+    while (generationQueueRef.current.length > 0) {
+      const task = generationQueueRef.current.shift();
+      const { cacheKey, inputText, filterId, intensity, layerIds } = task;
       
-      setCurrentGeneratingStep(i + 1);
+      // Double-check cache from both state and session storage
+      const currentSession = filterSessionManager.loadSession();
+      const sessionCache = currentSession?.cache || {};
+      
+      // Check if already cached (might have been generated while waiting)
+      if (cache[cacheKey] || sessionCache[cacheKey]) {
+        console.log(`Skipping ${cacheKey} - already cached`);
+        // Update local cache if it was in session but not local
+        if (sessionCache[cacheKey] && !cache[cacheKey]) {
+          setCache(prev => ({ ...prev, [cacheKey]: sessionCache[cacheKey] }));
+        }
+        continue;
+      }
+      
+      // Mark layers as generating
+      setGeneratingLayers(prev => new Set([...prev, ...layerIds]));
       
       try {
-        console.log(`Generating step ${i + 1}/${generationPlan.length}: ${step.cacheKey}`);
-        
-        const result = await generateFilterStep(
-          step.inputText,
-          step.filterId,
-          step.intensity,
-          selectedModel
-        );
+        console.log(`Generating ${cacheKey}: ${filterId} at ${intensity}% intensity`);
+        const result = await generateFilterStep(inputText, filterId, intensity, selectedModel);
         
         // Update cache
-        const newCache = { ...cache, [step.cacheKey]: result.text };
-        setCache(newCache);
-        filterSessionManager.updateCache(step.cacheKey, result.text);
+        setCache(prev => ({ ...prev, [cacheKey]: result.text }));
+        filterSessionManager.updateCache(cacheKey, result.text);
         
-        // Update token usage
+        // Update tokens
         if (result.usage) {
           setTotalTokens(prev => ({
             input: prev.input + (result.usage.inputTokens || 0),
@@ -273,170 +354,150 @@ export default function Filters() {
           );
         }
         
-        // For next step, use this result
-        if (i < generationPlan.length - 1) {
-          generationPlan[i + 1].inputText = result.text;
-        }
+        // Mark layers as no longer generating
+        setGeneratingLayers(prev => {
+          const newSet = new Set(prev);
+          layerIds.forEach(id => newSet.delete(id));
+          return newSet;
+        });
         
-        lastSuccessfulText = result.text;
+        // Update input for next steps in queue that depend on this result
+        generationQueueRef.current.forEach(nextTask => {
+          // Check if this task's input should be the result we just generated
+          if (nextTask.previousKey === cacheKey) {
+            console.log(`Updating input for ${nextTask.cacheKey} to use result from ${cacheKey}`);
+            nextTask.inputText = result.text;
+          }
+        });
         
       } catch (error) {
-        console.error(`Error generating ${step.cacheKey}:`, error);
+        if (error.name === 'AbortError') {
+          console.log('Generation aborted');
+          break;
+        }
         
-        setFailedSteps(prev => ({
-          ...prev,
-          [step.cacheKey]: error.message
-        }));
+        console.error(`Error generating ${cacheKey}:`, error);
         
-        setError(`Generation failed at step ${i + 1}: ${error.message}`);
-        setIsGenerating(false);
-        return;
+        setGeneratingLayers(prev => {
+          const newSet = new Set(prev);
+          layerIds.forEach(id => newSet.delete(id));
+          return newSet;
+        });
       }
     }
     
-    // All steps succeeded
-    setFinalResult(lastSuccessfulText);
-    filterSessionManager.updateFinalResult(lastSuccessfulText);
-    setIsGenerating(false);
-    setHasUnsavedChanges(false);
-    setUnsavedChangeCount(0);
-    setError(null);
+    isGeneratingRef.current = false;
+    abortControllerRef.current = null;
+  };
+
+  // Save session and regenerate
+  const saveSessionAndRegenerate = useCallback((newLayers) => {
+    // Cancel any ongoing generations
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
     
-    // Save session
+    // Load the current session to get the latest cache
+    const currentSession = filterSessionManager.loadSession();
+    const currentCache = currentSession?.cache || { 'original': originalText.trim() };
+    
+    // Save session with updated layers and current cache
     filterSessionManager.saveSession({
       originalText: originalText.trim(),
       selectedModel,
-      filterStackInitialized,
-      filters,
-      cache,
-      finalResult: lastSuccessfulText,
+      filterStackInitialized: true,
+      layers: newLayers,
+      cache: currentCache,  // Use the loaded cache
       totalTokens,
       lastModified: new Date().toISOString()
     });
-  };
-
-  // Handle Reset All
-  const handleResetAll = () => {
-    const newFilters = filters.map(f => ({
-      ...f,
-      enabled: false,
-      order: null,
-      intensity: f.defaultIntensity
-    }));
     
-    const newCache = { 'original': cache['original'] };
+    // Calculate what needs to be generated using current cache
+    const activeLayers = newLayers.filter(l => l.enabled);
+    const plan = calculateGenerationPlan(activeLayers, currentCache);
     
-    setFilters(newFilters);
-    setCache(newCache);
-    setFinalResult(null);
-    setHasUnsavedChanges(false);
-    setUnsavedChangeCount(0);
-    setError(null);
-    setFailedSteps({});
+    // Log for debugging
+    console.log('Cache keys present:', Object.keys(currentCache));
+    console.log('Generation plan:', plan.map(p => p.cacheKey));
     
-    filterSessionManager.saveSession({
-      originalText: originalText.trim(),
-      selectedModel,
-      filterStackInitialized,
-      filters: newFilters,
-      cache: newCache,
-      finalResult: null,
-      totalTokens: { input: 0, output: 0 },
-      lastModified: new Date().toISOString()
+    // Clear the queue and add new tasks
+    generationQueueRef.current = [];
+    
+    plan.forEach(step => {
+      // Find which layers this generation affects
+      const affectedLayerIds = [];
+      for (let i = step.stepIndex; i < activeLayers.length; i++) {
+        affectedLayerIds.push(activeLayers[i].id);
+      }
+      
+      generationQueueRef.current.push({
+        ...step,
+        layerIds: affectedLayerIds
+      });
     });
-  };
+    
+    // Update local cache state to match
+    setCache(currentCache);
+    
+    // Start processing
+    processGenerationQueue();
+  }, [originalText, selectedModel, totalTokens]);  // Remove cache from dependencies
 
-  // Handle Start Over
-  const handleStartOver = () => {
-    filterSessionManager.clearSession();
+  // Get layer status
+  const getLayerStatus = (layer) => {
+    if (!layer.enabled) return 'disabled';
+    if (generatingLayers.has(layer.id)) return 'generating';
     
-    setOriginalText('');
-    setSelectedModel('haiku-4.5');
-    setFilterStackInitialized(false);
-    setFilters(
-      AVAILABLE_FILTERS.map(f => ({
-        ...f,
-        enabled: false,
-        intensity: f.defaultIntensity,
-        order: null
-      }))
-    );
-    setCache({});
-    setFinalResult(null);
-    setHasUnsavedChanges(false);
-    setUnsavedChangeCount(0);
-    setTotalTokens({ input: 0, output: 0 });
-    setError(null);
-    setFailedSteps({});
-    setExpandedFilters({});
-  };
-
-  // Toggle filter expansion
-  const toggleFilterExpansion = (filterId) => {
-    setExpandedFilters(prev => ({
-      ...prev,
-      [filterId]: !prev[filterId]
-    }));
-  };
-
-  // Get cache status for a filter
-  const getFilterStatus = (filter) => {
-    const activeFilters = getActiveFilters();
-    const filterIndex = activeFilters.findIndex(f => f.id === filter.id);
-    
-    if (filterIndex === -1) return null;
-    
-    const cacheKey = getCacheKeyForStep(activeFilters, filterIndex);
-    
-    if (failedSteps[cacheKey]) return 'error';
-    if (generatingKeys.includes(cacheKey) && isGenerating) return 'generating';
-    if (cache[cacheKey]) return 'cached';
+    // Check if this layer's result is cached
+    const activeLayers = layers.filter(l => l.enabled);
+    const layerIndex = activeLayers.findIndex(l => l.id === layer.id);
+    if (layerIndex >= 0) {
+      const cacheKey = getCacheKeyForStep(activeLayers, layerIndex);
+      if (cache[cacheKey]) return 'complete';
+    }
     
     return 'pending';
   };
 
   const charCount = originalText.length;
   const charCountColor = charCount < 50 ? '#dc3545' : charCount > 1000 ? '#dc3545' : '#28a745';
-  
   const costEstimate = calculateCostEstimate(totalTokens, selectedModel);
 
-  return (
-    <div className={styles.container}>
-      <Head>
-        <title>Filter Stack - Text Transformer</title>
-        <meta name="description" content="Apply sequential transformations like photo filters" />
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
-
-      <main className={styles.main}>
-        {/* Navigation */}
-        <nav className={styles.featureNav}>
-          <Link href="/setup" className={styles.navLink}>
-            Coordinate Plane
-          </Link>
-          <span className={styles.separator}>|</span>
-          <Link href="/bridge-setup" className={styles.navLink}>
-            Bridge
-          </Link>
-          <span className={styles.separator}>|</span>
-          <Link href="/filters" className={`${styles.navLink} ${styles.active}`}>
-            Filters
-          </Link>
-        </nav>
-
-        <h1 className={styles.title}>Filter Stack</h1>
-        <p className={styles.description}>
-          Apply sequential transformations like photo filters for text.
-        </p>
-
-        {/* Input Section */}
-        {!filterStackInitialized && (
-          <div className={styles.inputSection}>
+  if (!filterStackInitialized) {
+    // Initial setup screen
+    return (
+      <div className={styles.container}>
+        <Head>
+          <title>Filter Stack - Text Transformer</title>
+          <meta name="description" content="Apply Photoshop-like text filters" />
+        </Head>
+        
+        <main className={styles.setupMain}>
+          <nav className={styles.featureNav}>
+            <Link href="/setup" className={styles.navLink}>
+              Coordinate Plane
+            </Link>
+            <span className={styles.separator}>|</span>
+            <Link href="/bridge-setup" className={styles.navLink}>
+              Bridge
+            </Link>
+            <span className={styles.separator}>|</span>
+            <Link href="/filters" className={`${styles.navLink} ${styles.active}`}>
+              Filters
+            </Link>
+          </nav>
+          
+          <h1 className={styles.title}>Filter Stack</h1>
+          <p className={styles.description}>
+            Apply Photoshop-like layer filters to transform your text
+          </p>
+          
+          <div className={styles.setupCard}>
             <div className={styles.formGroup}>
               <label htmlFor="originalText" className={styles.label}>
                 Your Text
                 <span className={styles.charCount} style={{ color: charCountColor }}>
-                  {charCount}/1000 characters
+                  {charCount}/1000
                 </span>
               </label>
               <textarea
@@ -449,19 +510,15 @@ export default function Filters() {
                 maxLength={1000}
               />
             </div>
-
-            {/* Error Messages */}
+            
             {errors.length > 0 && (
               <div className={styles.errorContainer}>
                 {errors.map((error, index) => (
-                  <p key={index} className={styles.error}>
-                    {error}
-                  </p>
+                  <p key={index} className={styles.error}>{error}</p>
                 ))}
               </div>
             )}
-
-            {/* Storage Warning */}
+            
             {storageWarning && (
               <div className={styles.warningContainer}>
                 <p className={styles.warning}>
@@ -469,8 +526,7 @@ export default function Filters() {
                 </p>
               </div>
             )}
-
-            {/* Model Selection and Load Filters Button */}
+            
             <div className={styles.submitSection}>
               <select 
                 value={selectedModel} 
@@ -483,250 +539,175 @@ export default function Filters() {
                   </option>
                 ))}
               </select>
-              <button
-                onClick={handleLoadFilters}
-                className={styles.loadButton}
-              >
-                Load Filters
+              <button onClick={handleInitialize} className={styles.initButton}>
+                Start Filtering
               </button>
             </div>
           </div>
-        )}
+        </main>
+      </div>
+    );
+  }
 
-        {/* Filter Stack Section */}
-        {filterStackInitialized && (
-          <>
-            {/* Pending Changes Badge */}
-            {hasUnsavedChanges && (
-              <div className={styles.pendingBadge}>
-                ⚠️ {unsavedChangeCount} unsaved change{unsavedChangeCount > 1 ? 's' : ''}
+  // Main filter interface (Photoshop-like)
+  return (
+    <div className={styles.photoshopContainer}>
+      <Head>
+        <title>Filter Stack - Text Transformer</title>
+      </Head>
+      
+      <nav className={styles.topNav}>
+        <div className={styles.navLinks}>
+          <Link href="/setup" className={styles.navLink}>
+            Coordinate Plane
+          </Link>
+          <span className={styles.separator}>|</span>
+          <Link href="/bridge-setup" className={styles.navLink}>
+            Bridge
+          </Link>
+          <span className={styles.separator}>|</span>
+          <Link href="/filters" className={`${styles.navLink} ${styles.active}`}>
+            Filters
+          </Link>
+        </div>
+        <button 
+          onClick={() => {
+            filterSessionManager.clearSession();
+            window.location.reload();
+          }}
+          className={styles.startOverBtn}
+        >
+          Start Over
+        </button>
+      </nav>
+      
+      <div className={styles.mainLayout}>
+        {/* Left Panel - Layers */}
+        <div className={styles.layersPanel}>
+          <div className={styles.panelHeader}>
+            <h2>Layers</h2>
+            <span className={styles.tokenInfo}>
+              {totalTokens.input + totalTokens.output} tokens • {costEstimate.formatted}
+            </span>
+          </div>
+          
+          {/* Active Layers */}
+          <div 
+            className={`${styles.layersList} ${isDraggingOverLayers ? styles.draggingOver : ''}`}
+            onDragOver={handleLayersAreaDragOver}
+            onDragLeave={handleLayersAreaDragLeave}
+            onDrop={(e) => handleLayersAreaDrop(e, 0)}
+          >
+            {layers.length === 0 && (
+              <div className={styles.emptyState}>
+                {isDraggingOverLayers ? 'Drop here to add layer' : 'Drag filters here or click them below'}
               </div>
             )}
-
-            {/* Error Display */}
-            {error && (
-              <div className={styles.errorContainer}>
-                <p className={styles.error}>{error}</p>
-              </div>
-            )}
-
-            {/* Filter List */}
-            <div className={styles.filterList}>
-              {filters.map((filter) => {
-                const status = getFilterStatus(filter);
-                const activeFilters = getActiveFilters();
-                const filterIndex = activeFilters.findIndex(f => f.id === filter.id);
-                const cacheKey = filterIndex >= 0 ? getCacheKeyForStep(activeFilters, filterIndex) : null;
-                const cachedText = cacheKey ? cache[cacheKey] : null;
-                const errorMessage = cacheKey ? failedSteps[cacheKey] : null;
-                
-                return (
-                  <div
-                    key={filter.id}
-                    className={`${styles.filterCard} ${
-                      filter.enabled ? styles.enabled : styles.disabled
-                    } ${status === 'error' ? styles.error : ''} ${
-                      status === 'generating' ? styles.generating : ''
-                    }`}
-                  >
-                    <div className={styles.filterHeader}>
+            
+            {layers.map((layer, index) => {
+              const status = getLayerStatus(layer);
+              return (
+                <div
+                  key={layer.key}
+                  className={`${styles.layer} ${styles[status]} ${
+                    dragOverIndex === index ? styles.dragOver : ''
+                  } ${draggedLayer === index ? styles.dragging : ''}`}
+                  draggable="true"
+                  onDragStart={(e) => handleLayerDragStart(e, index)}
+                  onDragOver={(e) => handleLayerDragOver(e, index)}
+                  onDragLeave={(e) => handleLayerDragLeave(e)}
+                  onDrop={(e) => handleLayerDrop(e, index)}
+                  onDragEnd={handleLayerDragEnd}
+                >
+                  <div className={styles.dragHandle}>⋮⋮</div>
+                  <div className={styles.layerContent}>
+                    <div className={styles.layerHeader}>
                       <input
                         type="checkbox"
-                        checked={filter.enabled}
-                        onChange={() => handleFilterToggle(filter.id)}
-                        className={styles.checkbox}
+                        checked={layer.enabled}
+                        onChange={() => toggleLayer(layer.id)}
+                        className={styles.layerCheckbox}
                       />
-                      <span className={styles.filterIcon}>{filter.icon}</span>
-                      <span className={styles.filterName}>{filter.name}</span>
-                      {filter.enabled && (
-                        <div className={styles.reorderButtons}>
-                          <button
-                            onClick={() => handleReorder(filter.id, 'up')}
-                            disabled={filter.order === 0}
-                            className={styles.reorderButton}
-                            title="Move up"
-                          >
-                            ↑
-                          </button>
-                          <button
-                            onClick={() => handleReorder(filter.id, 'down')}
-                            disabled={filter.order === activeFilters.length - 1}
-                            className={styles.reorderButton}
-                            title="Move down"
-                          >
-                            ↓
-                          </button>
-                        </div>
-                      )}
-                      {status && (
-                        <div className={`${styles.statusIndicator} ${styles[status]}`}>
-                          {status === 'cached' && '✓'}
-                          {status === 'generating' && '⟳'}
-                          {status === 'error' && '✗'}
-                          {status === 'pending' && '○'}
-                        </div>
-                      )}
+                      <span className={styles.layerIcon}>{layer.icon}</span>
+                      <span className={styles.layerName}>{layer.name}</span>
+                      <div className={styles.layerStatus}>
+                        {status === 'generating' && <span className={styles.spinner}>⟳</span>}
+                        {status === 'complete' && <span className={styles.check}>✓</span>}
+                        {status === 'pending' && <span className={styles.pending}>○</span>}
+                      </div>
+                      <button
+                        onClick={() => removeLayer(layer.id)}
+                        className={styles.removeBtn}
+                        title="Remove layer"
+                      >
+                        ×
+                      </button>
                     </div>
                     
-                    <div className={styles.filterDescription}>
-                      {filter.description}
-                    </div>
-                    
-                    {filter.enabled && (
-                      <div className={styles.filterControls}>
-                        <label className={styles.intensityLabel}>
-                          Intensity:
-                        </label>
+                    {layer.enabled && (
+                      <div className={styles.layerControls}>
                         <input
                           type="range"
                           min="25"
                           max="100"
                           step="25"
-                          value={filter.intensity}
-                          onChange={(e) => handleIntensityChange(filter.id, e.target.value)}
+                          value={layer.intensity}
+                          onChange={(e) => changeLayerIntensity(layer.id, e.target.value)}
                           className={styles.intensitySlider}
-                          disabled={!filter.enabled}
                         />
-                        <span className={styles.intensityValue}>
-                          {filter.intensity}%
-                        </span>
-                      </div>
-                    )}
-                    
-                    {errorMessage && (
-                      <div className={styles.errorMessage}>
-                        Error: {errorMessage}
-                      </div>
-                    )}
-                    
-                    {cachedText && filter.enabled && (
-                      <button
-                        onClick={() => toggleFilterExpansion(filter.id)}
-                        className={styles.expandButton}
-                      >
-                        {expandedFilters[filter.id] ? '▼ Hide' : '▶ View'} Result
-                      </button>
-                    )}
-                    
-                    {expandedFilters[filter.id] && cachedText && (
-                      <div className={styles.expandedResult}>
-                        {cachedText}
+                        <span className={styles.intensityValue}>{layer.intensity}%</span>
                       </div>
                     )}
                   </div>
-                );
-              })}
-            </div>
-
-            {/* Action Buttons */}
-            <div className={styles.actionButtons}>
-              <button
-                onClick={applyFilterStack}
-                disabled={isGenerating || !hasUnsavedChanges}
-                className={styles.applyButton}
-              >
-                {isGenerating 
-                  ? `Generating... (${currentGeneratingStep}/${totalSteps})`
-                  : 'Apply Filters'
-                }
-              </button>
-              <button
-                onClick={handleResetAll}
-                disabled={isGenerating}
-                className={styles.resetButton}
-              >
-                Reset All
-              </button>
-            </div>
-
-            {/* Results Section */}
-            {finalResult && (
-              <div className={styles.resultsSection}>
-                <h2 className={styles.resultsTitle}>Final Result</h2>
-                
-                <div className={styles.tokenDisplay}>
-                  <span><strong>Input:</strong> {totalTokens.input} tokens</span>
-                  <span className={styles.separator}>|</span>
-                  <span><strong>Output:</strong> {totalTokens.output} tokens</span>
-                  <span className={styles.separator}>|</span>
-                  <span><strong>Total:</strong> {totalTokens.input + totalTokens.output} tokens</span>
-                  <span className={styles.separator}>|</span>
-                  <span><strong>≈</strong> {costEstimate.formatted}</span>
                 </div>
-                
-                <div className={styles.resultText}>
-                  {finalResult}
-                </div>
-                
-                <div className={styles.resultActions}>
-                  <button
-                    onClick={() => setPipelineExpanded(!pipelineExpanded)}
-                    className={styles.pipelineButton}
-                  >
-                    {pipelineExpanded ? 'Hide Pipeline' : 'View Pipeline'}
-                  </button>
-                  <button
-                    onClick={handleStartOver}
-                    className={styles.startOverButton}
-                  >
-                    Start Over
-                  </button>
-                </div>
-                
-                {/* Pipeline Display */}
-                {pipelineExpanded && (
-                  <div className={styles.pipeline}>
-                    <h3>Generation Pipeline</h3>
-                    
-                    <div className={styles.pipelineStep}>
-                      <div className={styles.stepHeader}>Original</div>
-                      <div className={styles.stepText}>{cache['original']}</div>
-                    </div>
-                    
-                    {getActiveFilters().map((filter, i) => {
-                      const cacheKey = getCacheKeyForStep(getActiveFilters(), i);
-                      const text = cache[cacheKey];
-                      const roundedIntensity = Math.round(filter.intensity / 25) * 25;
-                      
-                      return (
-                        <React.Fragment key={i}>
-                          <div className={styles.pipelineArrow}>↓</div>
-                          <div className={styles.pipelineStep}>
-                            <div className={styles.stepHeader}>
-                              {filter.icon} {filter.name} ({roundedIntensity}%)
-                            </div>
-                            <div className={styles.stepText}>
-                              {text || 'Not yet generated'}
-                            </div>
-                          </div>
-                        </React.Fragment>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-          </>
-        )}
-
-        {/* Info Box */}
-        {!filterStackInitialized && (
-          <div className={styles.infoBox}>
-            <h3>How Filter Stack Works:</h3>
-            <ol>
-              <li>Enter your text (50-1000 characters)</li>
-              <li>Load the filter interface</li>
-              <li>Enable filters and adjust their intensity</li>
-              <li>Reorder filters to change the sequence</li>
-              <li>Click "Apply Filters" to generate</li>
-              <li>Results are cached for efficient experimentation</li>
-            </ol>
-            <p className={styles.infoNote}>
-              <strong>Note:</strong> Filters are applied sequentially - each filter transforms the output of the previous one, creating a pipeline of transformations.
-            </p>
+              );
+            })}
           </div>
-        )}
-      </main>
+          
+          {/* Available Filters */}
+          <div className={styles.availableFilters}>
+            <h3>Available Filters</h3>
+            <div className={styles.filterGrid}>
+              {availableFilters.map(filter => (
+                <button
+                  key={filter.id}
+                  onClick={() => addLayer(filter)}
+                  className={styles.filterButton}
+                  title={filter.description}
+                  draggable
+                  onDragStart={(e) => handleFilterDragStart(e, filter)}
+                  onDragEnd={handleFilterDragEnd}
+                >
+                  <span className={styles.filterIcon}>{filter.icon}</span>
+                  <span className={styles.filterName}>{filter.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        
+        {/* Right Panel - Text Preview */}
+        <div className={styles.previewPanel}>
+          <div className={styles.previewHeader}>
+            <h2>Preview</h2>
+            <div className={styles.modelInfo}>
+              {selectedModel.replace('-', ' ').replace('4.5', ' 4.5').toUpperCase()}
+            </div>
+          </div>
+          
+          <div className={styles.textPreview}>
+            {currentDisplayText || 'Your text will appear here...'}
+          </div>
+          
+          {/* Generation Status */}
+          {generationQueueRef.current.length > 0 && (
+            <div className={styles.generationStatus}>
+              <div className={styles.generatingIcon}>⟳</div>
+              Generating {generationQueueRef.current.length} transformation{generationQueueRef.current.length > 1 ? 's' : ''}...
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
