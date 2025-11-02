@@ -167,6 +167,20 @@ export default function Generate() {
   };
 
   const generateCoordinate = async (coordinate, sessionData) => {
+    // Handle centerpoint (0,0) directly without API call
+    if (coordinate === '0,0') {
+      // Store original text directly as the centerpoint
+      sessionManager.updateGeneration(coordinate, sessionData.originalText);
+      
+      // Update status to show it's complete
+      setGenerationStatus(prev => ({ ...prev, [coordinate]: 'complete' }));
+      setProgress(prev => prev + 1);
+      
+      // Return in same format as API would
+      return { text: sessionData.originalText };
+    }
+    
+    // For all other coordinates, proceed with API call
     const maxRetries = 3;
     let lastError;
 
@@ -329,7 +343,7 @@ export default function Generate() {
         {canExplore && !error && (
           <div className={styles.exploreSection}>
             <p className={styles.exploreText}>
-              Center point generated! You can start exploring now while the rest generate in the background.
+              Ready to explore! Starting from your original text in the center.
             </p>
             <button
               onClick={() => router.push('/explore')}

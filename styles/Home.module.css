@@ -21,11 +21,37 @@
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  padding: 2rem;
-  min-height: 200px;
+  height: 250px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e0 transparent;
+}
+
+.messageDisplayContainer::-webkit-scrollbar {
+  width: 8px;
+}
+
+.messageDisplayContainer::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.messageDisplayContainer::-webkit-scrollbar-thumb {
+  background-color: #cbd5e0;
+  border-radius: 4px;
+}
+
+.messageDisplayContainer::-webkit-scrollbar-thumb:hover {
+  background-color: #a0aec0;
+}
+
+.messageDisplayWrapper {
+  min-height: 100%;
+  padding: 3rem 2rem 2rem 2rem;
+  box-sizing: border-box;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
 }
 
 .messageDisplay {
@@ -36,6 +62,8 @@
   max-width: 700px;
   white-space: pre-wrap;
   word-wrap: break-word;
+  width: 100%;
+  margin: 0 auto;
 }
 
 .coordinatePlaneContainer {
@@ -234,8 +262,11 @@
   }
 
   .messageDisplayContainer {
-    padding: 1.5rem;
-    min-height: 150px;
+    height: 220px;
+  }
+  
+  .messageDisplayWrapper {
+    padding: 2rem 1.5rem 1.5rem 1.5rem;
   }
 
   .messageDisplay {
