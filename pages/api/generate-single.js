@@ -1,4 +1,5 @@
 import { buildPrompt } from '../../utils/promptBuilder';
+import { buildFilterPrompt } from '../../utils/filterDefinitions';
 
 export const config = {
   maxDuration: 60, // Vercel Pro: 60 seconds is plenty for one API call
@@ -164,6 +165,10 @@ export default async function handler(req, res) {
     coordinate, 
     textLeft, 
     textRight,
+    // Filter mode params
+    inputText,
+    filterId,
+    intensity,
     selectedModel = 'haiku-4.5' 
   } = req.body;
 
@@ -197,7 +202,24 @@ export default async function handler(req, res) {
   try {
     let prompt;
     
-    if (mode === 'bridge') {
+    if (mode === 'filter') {
+      // Filter mode
+      if (!inputText || !filterId || intensity === undefined) {
+        return res.status(400).json({ 
+          error: 'Filter mode requires inputText, filterId, and intensity' 
+        });
+      }
+      
+      // Validate intensity is in valid range
+      if (intensity < 25 || intensity > 100 || intensity % 25 !== 0) {
+        return res.status(400).json({
+          error: 'Intensity must be 25, 50, 75, or 100'
+        });
+      }
+      
+      prompt = buildFilterPrompt(inputText, filterId, intensity);
+      
+    } else if (mode === 'bridge') {
       // Bridge mode: use textLeft and textRight
       if (!textLeft || !textRight) {
         return res.status(400).json({ 

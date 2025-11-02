@@ -464,6 +464,8 @@
 /* Explore Page - Message Display */
 .messageDisplayContainer {
   margin-bottom: 2rem;
+  /* Maintain consistent height to prevent jumping */
+  min-height: 380px;
 }
 
 .messageDisplayWrapper {
@@ -478,6 +480,10 @@
   border-radius: 4px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.05);
   min-height: 300px;
+  /* Prevent excessive growth and add smooth transitions */
+  max-height: 600px;
+  overflow-y: auto;
+  transition: opacity 0.2s ease;
   font-family: 'Crimson Text', Georgia, serif;
   font-size: 1.2rem;
   line-height: 1.8;
@@ -683,6 +689,24 @@
   margin: 0.5rem 0;
 }
 
+/* Accessibility: Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  .messageDisplay {
+    transition: none;
+  }
+  
+  .slider::-webkit-slider-thumb,
+  .slider::-moz-range-thumb {
+    transition: none;
+  }
+  
+  .spinner {
+    animation: none;
+    border-top-color: transparent;
+    border-right-color: var(--ink-blue);
+  }
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .textInputGrid {
@@ -737,5 +761,52 @@
     flex-direction: column;
     gap: 1rem;
     text-align: center;
+  }
+}
+
+/* Feature Navigation */
+.featureNav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1rem 0;
+  margin-bottom: 2rem;
+  border-bottom: 1px solid var(--border);
+  font-family: 'Inter', -apple-system, sans-serif;
+}
+
+.featureNav .navLink {
+  color: var(--muted);
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.featureNav .navLink:hover {
+  color: var(--ink);
+  background: var(--hover);
+}
+
+.featureNav .navLink.active {
+  color: var(--ink-blue);
+  background: var(--hover);
+  font-weight: 600;
+}
+
+.featureNav .separator {
+  color: var(--border);
+}
+
+/* Responsive Feature Navigation */
+@media (max-width: 768px) {
+  .featureNav {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .featureNav .separator {
+    display: none;
   }
 }

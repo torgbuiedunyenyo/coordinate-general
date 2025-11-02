@@ -121,11 +121,20 @@ export default function Setup() {
       </Head>
 
       <main className={styles.main}>
-        <div className={styles.navigation}>
-          <Link href="/bridge-setup" className={styles.navLink}>
-            Try Text Bridge →
+        {/* Feature Navigation */}
+        <nav className={styles.featureNav}>
+          <Link href="/setup" className={`${styles.navLink} ${styles.active}`}>
+            Coordinate Plane
           </Link>
-        </div>
+          <span className={styles.separator}>|</span>
+          <Link href="/bridge-setup" className={styles.navLink}>
+            Bridge
+          </Link>
+          <span className={styles.separator}>|</span>
+          <Link href="/filters" className={styles.navLink}>
+            Filters
+          </Link>
+        </nav>
         
         <h1 className={styles.title}>Coordinate Plane Text Transformer</h1>
         <p className={styles.description}>

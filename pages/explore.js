@@ -345,6 +345,21 @@ export default function Explore() {
       </Head>
 
       <main className={styles.main}>
+        {/* Feature Navigation */}
+        <nav className={styles.featureNav}>
+          <Link href="/setup" className={`${styles.navLink} ${styles.active}`}>
+            Coordinate Plane
+          </Link>
+          <span className={styles.separator}>|</span>
+          <Link href="/bridge-setup" className={styles.navLink}>
+            Bridge
+          </Link>
+          <span className={styles.separator}>|</span>
+          <Link href="/filters" className={styles.navLink}>
+            Filters
+          </Link>
+        </nav>
+        
         <div className={styles.navigation}>
           <Link href="/setup" className={styles.navLink}>
             ← Setup

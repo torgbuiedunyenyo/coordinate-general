@@ -225,3 +225,50 @@
     font-size: 2rem;
   }
 }
+
+/* Feature Navigation */
+.featureNav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1rem 0;
+  margin-bottom: 2rem;
+  border-bottom: 1px solid var(--border);
+  font-family: 'Inter', -apple-system, sans-serif;
+}
+
+.featureNav .navLink {
+  color: var(--muted);
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.featureNav .navLink:hover {
+  color: var(--ink);
+  background: var(--hover);
+}
+
+.featureNav .navLink.active {
+  color: var(--ink-blue);
+  background: var(--hover);
+  font-weight: 600;
+}
+
+.featureNav .separator {
+  color: var(--border);
+}
+
+/* Responsive Feature Navigation */
+@media (max-width: 768px) {
+  .featureNav {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .featureNav .separator {
+    display: none;
+  }
+}

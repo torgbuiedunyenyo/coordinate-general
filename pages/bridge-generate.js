@@ -262,6 +262,21 @@ export default function BridgeGenerate() {
       </Head>
 
       <main className={styles.main}>
+        {/* Feature Navigation */}
+        <nav className={styles.featureNav}>
+          <Link href="/setup" className={styles.navLink}>
+            Coordinate Plane
+          </Link>
+          <span className={styles.separator}>|</span>
+          <Link href="/bridge-setup" className={`${styles.navLink} ${styles.active}`}>
+            Bridge
+          </Link>
+          <span className={styles.separator}>|</span>
+          <Link href="/filters" className={styles.navLink}>
+            Filters
+          </Link>
+        </nav>
+        
         <div className={styles.navigation}>
           <Link href="/bridge-setup" className={styles.navLink}>
             ← Bridge Setup

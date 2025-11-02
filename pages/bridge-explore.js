@@ -127,14 +127,19 @@ export default function BridgeExplore() {
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'ArrowLeft' && currentPosition > 0) {
-      const newPosition = currentPosition - 1;
-      setCurrentPosition(newPosition);
-      updateText(newPosition);
-    } else if (e.key === 'ArrowRight' && currentPosition < 10) {
-      const newPosition = currentPosition + 1;
-      setCurrentPosition(newPosition);
-      updateText(newPosition);
+    // Prevent default arrow key behavior to avoid double-jumping
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      
+      if (e.key === 'ArrowLeft' && currentPosition > 0) {
+        const newPosition = currentPosition - 1;
+        setCurrentPosition(newPosition);
+        updateText(newPosition);
+      } else if (e.key === 'ArrowRight' && currentPosition < 10) {
+        const newPosition = currentPosition + 1;
+        setCurrentPosition(newPosition);
+        updateText(newPosition);
+      }
     }
   };
 
@@ -167,6 +172,21 @@ export default function BridgeExplore() {
       </Head>
 
       <main className={styles.main}>
+        {/* Feature Navigation */}
+        <nav className={styles.featureNav}>
+          <Link href="/setup" className={styles.navLink}>
+            Coordinate Plane
+          </Link>
+          <span className={styles.separator}>|</span>
+          <Link href="/bridge-setup" className={`${styles.navLink} ${styles.active}`}>
+            Bridge
+          </Link>
+          <span className={styles.separator}>|</span>
+          <Link href="/filters" className={styles.navLink}>
+            Filters
+          </Link>
+        </nav>
+        
         <div className={styles.navigation}>
           <Link href="/bridge-setup" className={styles.navLink}>
             ← Bridge Setup
