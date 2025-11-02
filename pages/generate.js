@@ -12,6 +12,7 @@ export default function Generate() {
   const [currentRing, setCurrentRing] = useState(0);
   const [canExplore, setCanExplore] = useState(false);
   const [error, setError] = useState(null);
+  const [storageWarning, setStorageWarning] = useState(null);
   const [generationStatus, setGenerationStatus] = useState({}); // coord -> 'pending'|'generating'|'complete'|'error'
   const isGeneratingRef = useRef(false);
   const sessionIdRef = useRef(null);
@@ -19,7 +20,7 @@ export default function Generate() {
   useEffect(() => {
     // Load session
     const loadedSession = sessionManager.loadSession();
-    
+
     if (!loadedSession) {
       // No session, redirect to setup
       router.push('/setup');
@@ -27,6 +28,12 @@ export default function Generate() {
     }
 
     setSession(loadedSession);
+
+    // Check for storage warning
+    const warning = sessionManager.getStorageWarning();
+    if (warning) {
+      setStorageWarning(warning);
+    }
     
     // Create a unique session ID based on the input data
     const newSessionId = JSON.stringify({
@@ -310,6 +317,12 @@ export default function Generate() {
         {error && (
           <div className={styles.errorBox}>
             {error}
+          </div>
+        )}
+
+        {storageWarning && (
+          <div className={styles.errorBox} style={{ backgroundColor: '#fff3cd', borderColor: '#ffc107', color: '#856404' }}>
+            ⚠️ {storageWarning}
           </div>
         )}
 

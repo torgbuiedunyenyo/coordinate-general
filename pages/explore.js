@@ -9,26 +9,34 @@ export default function Explore() {
   const router = useRouter();
   const coordinatePlaneRef = useRef(null);
   const circleRef = useRef(null);
+  const debounceTimerRef = useRef(null);
   const [currentSquare, setCurrentSquare] = useState("0,0");
   const [isDragging, setIsDragging] = useState(false);
   const [currentText, setCurrentText] = useState('');
   const [session, setSession] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [storageWarning, setStorageWarning] = useState(null);
 
   useEffect(() => {
     // Load session
     const loadedSession = sessionManager.loadSession();
-    
+
     if (!loadedSession) {
       router.push('/setup');
       return;
     }
 
     setSession(loadedSession);
-    
+
     // Load initial text
     const initialText = loadedSession.generations['0,0'] || 'Generating...';
     setCurrentText(initialText);
+
+    // Check for storage warning
+    const warning = sessionManager.getStorageWarning();
+    if (warning) {
+      setStorageWarning(warning);
+    }
   }, [router]);
 
   useEffect(() => {
@@ -70,7 +78,7 @@ export default function Explore() {
       const newCoord = `${col},${row}`;
       if (newCoord !== currentSquare) {
         setCurrentSquare(newCoord);
-        updateText(newCoord);
+        debouncedUpdateText(newCoord);
         setCirclePosition(col, row);
       }
     };
@@ -145,7 +153,7 @@ export default function Explore() {
       const newCoord = `${col},${row}`;
       if (newCoord !== currentSquare) {
         setCurrentSquare(newCoord);
-        updateText(newCoord);
+        debouncedUpdateText(newCoord);
         setCirclePosition(col, row);
       }
     };
@@ -176,13 +184,18 @@ export default function Explore() {
     };
   }, [currentSquare, isDragging, session]);
 
-  const updateText = async (coordinate) => {
+  const updateText = async (coordinate, shouldPreload = true) => {
     if (!session) return;
 
     // Check if we have this generation
     if (session.generations[coordinate]) {
       setCurrentText(session.generations[coordinate]);
       setIsGenerating(false); // Reset loading state when showing existing text
+
+      // Preload adjacent coordinates in background
+      if (shouldPreload) {
+        preloadAdjacentCoordinates(coordinate);
+      }
       return;
     }
 
@@ -209,11 +222,16 @@ export default function Explore() {
 
       const result = await response.json();
       sessionManager.updateGeneration(coordinate, result.text);
-      
+
       // Update local session state
       const updatedSession = sessionManager.loadSession();
       setSession(updatedSession);
       setCurrentText(result.text);
+
+      // Preload adjacent coordinates in background
+      if (shouldPreload) {
+        preloadAdjacentCoordinates(coordinate);
+      }
 
     } catch (error) {
       console.error('Error generating coordinate:', error);
@@ -221,6 +239,67 @@ export default function Explore() {
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  // Debounced version of updateText for drag operations
+  const debouncedUpdateText = (coordinate) => {
+    // Clear existing timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // Set new timer
+    debounceTimerRef.current = setTimeout(() => {
+      updateText(coordinate);
+    }, 150); // 150ms debounce
+  };
+
+  // Preload adjacent coordinates in the background
+  const preloadAdjacentCoordinates = (coordinate) => {
+    const [x, y] = coordinate.split(',').map(Number);
+
+    // Get 4 adjacent coordinates (up, down, left, right)
+    const adjacentCoords = [
+      `${x},${y + 1}`, // up
+      `${x},${y - 1}`, // down
+      `${x - 1},${y}`, // left
+      `${x + 1},${y}`, // right
+    ];
+
+    // Filter to valid coordinates within the grid
+    const validCoords = adjacentCoords.filter(coord => {
+      const [cx, cy] = coord.split(',').map(Number);
+      return cx >= -5 && cx <= 5 && cy >= -5 && cy <= 5;
+    });
+
+    // Preload missing coordinates in background (without blocking UI)
+    validCoords.forEach(coord => {
+      if (!session.generations[coord]) {
+        // Generate in background without showing loading state
+        fetch('/api/generate-single', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            text: session.originalText,
+            adjectives: session.adjectives,
+            coordinate: coord
+          })
+        })
+        .then(response => response.json())
+        .then(result => {
+          sessionManager.updateGeneration(coord, result.text);
+          // Update local session state silently
+          const updatedSession = sessionManager.loadSession();
+          setSession(updatedSession);
+        })
+        .catch(error => {
+          // Silently fail for background preloading
+          console.log(`Background preload failed for ${coord}:`, error.message);
+        });
+      }
+    });
   };
 
   const handleStartOver = () => {
@@ -259,6 +338,20 @@ export default function Explore() {
             )}
           </div>
         </div>
+
+        {storageWarning && (
+          <div style={{
+            backgroundColor: '#fff3cd',
+            border: '1px solid #ffc107',
+            borderRadius: '8px',
+            padding: '1rem',
+            margin: '1rem 0',
+            color: '#856404',
+            textAlign: 'center'
+          }}>
+            ⚠️ {storageWarning}
+          </div>
+        )}
 
         <div className={styles.coordinatePlaneContainer}>
           <div className={styles.coordinatePlane} ref={coordinatePlaneRef}>

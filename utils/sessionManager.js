@@ -1,31 +1,70 @@
 const SESSION_KEY = 'coordinatePlaneSession';
 
+// In-memory fallback storage
+let memoryStore = null;
+let usingMemoryFallback = false;
+let storageWarningShown = false;
+
+// Check if sessionStorage is available
+const isSessionStorageAvailable = () => {
+  try {
+    if (typeof window === 'undefined') return false;
+    const testKey = '__storage_test__';
+    sessionStorage.setItem(testKey, 'test');
+    sessionStorage.removeItem(testKey);
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
+
 export const sessionManager = {
+  // Get storage warning if using fallback
+  getStorageWarning: () => {
+    if (usingMemoryFallback && !storageWarningShown) {
+      storageWarningShown = true;
+      return 'SessionStorage is unavailable. Using memory-only mode. Your session will be lost if you close this tab.';
+    }
+    return null;
+  },
+
+  // Check if using memory fallback
+  isUsingMemoryFallback: () => usingMemoryFallback,
+
   // Save complete session
   saveSession: (data) => {
     try {
-      if (typeof window !== 'undefined') {
+      if (typeof window !== 'undefined' && isSessionStorageAvailable()) {
         sessionStorage.setItem(SESSION_KEY, JSON.stringify(data));
         return true;
       }
-      return false;
+      // Fallback to memory storage
+      memoryStore = data;
+      usingMemoryFallback = true;
+      return true;
     } catch (error) {
-      console.error('Failed to save session:', error);
-      return false;
+      // SessionStorage full or disabled, use memory fallback
+      console.warn('SessionStorage failed, using memory fallback:', error.message);
+      memoryStore = data;
+      usingMemoryFallback = true;
+      return true;
     }
   },
 
   // Load session
   loadSession: () => {
     try {
-      if (typeof window !== 'undefined') {
+      if (typeof window !== 'undefined' && isSessionStorageAvailable()) {
         const data = sessionStorage.getItem(SESSION_KEY);
-        return data ? JSON.parse(data) : null;
+        if (data) {
+          return JSON.parse(data);
+        }
       }
-      return null;
+      // Try memory fallback
+      return memoryStore;
     } catch (error) {
-      console.error('Failed to load session:', error);
-      return null;
+      console.warn('Failed to load from sessionStorage, using memory fallback:', error.message);
+      return memoryStore;
     }
   },
 
@@ -70,14 +109,20 @@ export const sessionManager = {
   // Clear session
   clearSession: () => {
     try {
-      if (typeof window !== 'undefined') {
+      if (typeof window !== 'undefined' && isSessionStorageAvailable()) {
         sessionStorage.removeItem(SESSION_KEY);
-        return true;
       }
-      return false;
+      // Also clear memory fallback
+      memoryStore = null;
+      usingMemoryFallback = false;
+      storageWarningShown = false;
+      return true;
     } catch (error) {
-      console.error('Failed to clear session:', error);
-      return false;
+      console.warn('Failed to clear sessionStorage, clearing memory fallback:', error.message);
+      memoryStore = null;
+      usingMemoryFallback = false;
+      storageWarningShown = false;
+      return true;
     }
   },
 

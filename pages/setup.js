@@ -17,6 +17,7 @@ export default function Setup() {
   const [errors, setErrors] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasExistingSession, setHasExistingSession] = useState(false);
+  const [storageWarning, setStorageWarning] = useState(null);
 
   // Load existing session data on mount to pre-fill the form
   useEffect(() => {
@@ -31,6 +32,12 @@ export default function Setup() {
         xNegative: ''
       });
       setHasExistingSession(true);
+    }
+
+    // Check for storage warning
+    const warning = sessionManager.getStorageWarning();
+    if (warning) {
+      setStorageWarning(warning);
     }
   }, []);
 
@@ -180,6 +187,15 @@ export default function Setup() {
                   {error}
                 </p>
               ))}
+            </div>
+          )}
+
+          {/* Storage Warning */}
+          {storageWarning && (
+            <div className={styles.errorContainer} style={{ backgroundColor: '#fff3cd', borderColor: '#ffc107', color: '#856404' }}>
+              <p className={styles.error} style={{ color: '#856404' }}>
+                ⚠️ {storageWarning}
+              </p>
             </div>
           )}
 
