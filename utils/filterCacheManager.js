@@ -1,13 +1,17 @@
 // Helper functions for cache key management
 
 // Generate cache key from active filter chain
-// CRITICAL: First filter has NO 'original|' prefix
+// CRITICAL: Process filters from bottom to top (reverse visual order)
+// Visual stack: [newest/top, ..., oldest/bottom]
+// Processing order: oldest/bottom -> newest/top
 export function buildCacheKey(activeFilters) {
   if (!activeFilters || activeFilters.length === 0) {
     return 'original';
   }
   
-  const parts = activeFilters.map(f => {
+  // Reverse the filters array to process bottom-to-top (Photoshop-style)
+  const reversedFilters = [...activeFilters].reverse();
+  const parts = reversedFilters.map(f => {
     const roundedIntensity = Math.round(f.intensity / 25) * 25;
     return `${f.id}-${roundedIntensity}`;
   });
@@ -16,12 +20,15 @@ export function buildCacheKey(activeFilters) {
 }
 
 // Generate cache key up to a specific step index
+// stepIndex is in visual order (0 = top layer)
 export function getCacheKeyForStep(activeFilters, stepIndex) {
   if (!activeFilters || activeFilters.length === 0 || stepIndex < 0) {
     return 'original';
   }
   
-  const filtersUpToStep = activeFilters.slice(0, stepIndex + 1);
+  // Include all filters from bottom up to and including the one at stepIndex
+  // Since we want bottom-to-top processing, we take from stepIndex to end
+  const filtersUpToStep = activeFilters.slice(stepIndex);
   return buildCacheKey(filtersUpToStep);
 }
 
@@ -29,18 +36,20 @@ export function getCacheKeyForStep(activeFilters, stepIndex) {
 export function findReusableSteps(newFilterChain, cache) {
   if (!newFilterChain || newFilterChain.length === 0) {
     return {
-      reusableUpToIndex: -1,
+      reusableUpToIndex: newFilterChain.length,
       cacheKey: 'original',
-      text: cache['original']
+      text: cache['original'],
+      needsGenerationFromIndex: newFilterChain.length
     };
   }
   
-  // Check each step to find longest matching prefix in cache
-  let longestMatchIndex = -1;
+  // Check from bottom to top to find longest matching chain in cache
+  // Start from the bottom layer (last index) and work up
+  let longestMatchIndex = newFilterChain.length;
   let matchKey = 'original';
   let matchText = cache['original'];
   
-  for (let i = 0; i < newFilterChain.length; i++) {
+  for (let i = newFilterChain.length - 1; i >= 0; i--) {
     const keyForThisStep = getCacheKeyForStep(newFilterChain, i);
     
     if (cache[keyForThisStep]) {
@@ -48,9 +57,7 @@ export function findReusableSteps(newFilterChain, cache) {
       longestMatchIndex = i;
       matchKey = keyForThisStep;
       matchText = cache[keyForThisStep];
-    } else {
-      // This step is NOT cached - stop looking
-      break;
+      break; // Found the topmost cached layer
     }
   }
   
@@ -58,7 +65,7 @@ export function findReusableSteps(newFilterChain, cache) {
     reusableUpToIndex: longestMatchIndex,
     cacheKey: matchKey,
     text: matchText,
-    needsGenerationFromIndex: longestMatchIndex + 1
+    needsGenerationFromIndex: longestMatchIndex - 1
   };
 }
 
@@ -74,8 +81,9 @@ export function calculateGenerationPlan(activeFilters, cache) {
   let currentText = reusable.text;
   let previousKey = reusable.cacheKey;
   
-  // Start generating from where cache ends
-  for (let i = reusable.needsGenerationFromIndex; i < activeFilters.length; i++) {
+  // Generate from bottom to top (reverse order)
+  // Start from where cache ends and work up to the top layer
+  for (let i = reusable.needsGenerationFromIndex; i >= 0; i--) {
     const filter = activeFilters[i];
     const roundedIntensity = Math.round(filter.intensity / 25) * 25;
     
@@ -126,8 +134,10 @@ export function isValidCacheKey(key) {
 export function getInvalidatedCacheKeys(activeFilters, changedIndex, cache) {
   const keysToInvalidate = [];
   
-  // Build all possible cache keys that include or come after the changed filter
-  for (let i = changedIndex; i < activeFilters.length; i++) {
+  // Invalidate all cache keys that include the changed filter
+  // Since we process bottom-to-top, changing a filter invalidates
+  // itself and all filters above it (indices 0 to changedIndex)
+  for (let i = 0; i <= changedIndex; i++) {
     const key = getCacheKeyForStep(activeFilters, i);
     if (cache[key]) {
       keysToInvalidate.push(key);
@@ -156,7 +166,8 @@ export function getFilterChainSummary(activeFilters) {
     return 'No filters applied';
   }
   
-  return activeFilters
+  // Show in processing order (bottom to top)
+  return [...activeFilters].reverse()
     .map(f => `${f.name} (${f.intensity}%)`)
     .join(' → ');
 }

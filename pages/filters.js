@@ -86,8 +86,9 @@ export default function Filters() {
       return;
     }
     
-    // Try to find the longest cached chain
-    for (let i = activeLayers.length - 1; i >= 0; i--) {
+    // Find the topmost layer with cached results (processing is bottom-to-top)
+    // Start from the top layer (index 0) and look for cached results
+    for (let i = 0; i < activeLayers.length; i++) {
       const cacheKey = getCacheKeyForStep(activeLayers, i);
       if (cache[cacheKey]) {
         setCurrentDisplayText(cache[cacheKey]);
@@ -224,9 +225,21 @@ export default function Filters() {
       const newLayers = [...layers];
       const [movedLayer] = newLayers.splice(draggedLayer, 1);
       
-      // Adjust drop index if we removed an item before it
-      const adjustedDropIndex = draggedLayer < dropIndex ? dropIndex - 1 : dropIndex;
-      newLayers.splice(adjustedDropIndex, 0, movedLayer);
+      // Calculate where to insert
+      let insertIndex = dropIndex;
+      
+      // If dragging from above to below, the removal shifts indices down
+      if (draggedLayer < dropIndex) {
+        insertIndex = dropIndex - 1;
+      }
+      
+      // If dropping on the last position and dragging from above,
+      // place it after (at the end)
+      if (dropIndex === layers.length - 1 && draggedLayer < dropIndex) {
+        insertIndex = newLayers.length;
+      }
+      
+      newLayers.splice(insertIndex, 0, movedLayer);
       
       setLayers(newLayers);
       saveSessionAndRegenerate(newLayers);
