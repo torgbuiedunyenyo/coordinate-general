@@ -141,8 +141,11 @@ export default function Generate() {
     });
     setGenerationStatus(prev => ({ ...prev, ...newStatus }));
 
-    // Process in batches of 2 (parallel requests) - reduced to avoid overloading API
-    const batchSize = 2;
+    // Model-specific batch sizes for optimal performance
+    // Gemini 2.5 Flash can handle 1000 RPM (~16/sec), so 10 concurrent is very safe
+    // Claude models are more conservative with rate limits
+    const batchSize = sessionData.selectedModel === 'gemini-2.5-flash' ? 10 : 
+                     sessionData.selectedModel === 'sonnet-4.5' ? 3 : 2;
     
     for (let i = 0; i < coordinates.length; i += batchSize) {
       const batch = coordinates.slice(i, i + batchSize);
@@ -159,10 +162,8 @@ export default function Generate() {
         batch.map(coord => generateCoordinate(coord, sessionData))
       );
 
-      // Delay between batches to avoid overloading the API
-      if (i + batchSize < coordinates.length) {
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Increased to 2 seconds
-      }
+      // No artificial delay between batches - let the API handle rate limiting
+      // Modern APIs like Gemini 2.5 Flash can handle rapid requests
     }
   };
 
@@ -194,7 +195,8 @@ export default function Generate() {
           body: JSON.stringify({
             text: sessionData.originalText,
             adjectives: sessionData.adjectives,
-            coordinate
+            coordinate,
+            selectedModel: sessionData.selectedModel || 'haiku-4.5' // Pass selected model to API
           })
         });
 
@@ -218,10 +220,14 @@ export default function Generate() {
         console.error(`Error generating ${coordinate} (attempt ${attempt + 1}):`, error);
         lastError = error;
         
-        // Exponential backoff with longer delay for overloaded errors
+        // Exponential backoff with model-specific delays
         if (attempt < maxRetries - 1) {
           const isOverloaded = error.message?.includes('Overloaded');
-          const baseDelay = isOverloaded ? 5000 : 1000; // 5 seconds base for overloaded
+          // Faster retries for Gemini, more conservative for Claude models
+          const isGemini = sessionData.selectedModel === 'gemini-2.5-flash';
+          const baseDelay = isOverloaded ? 
+            (isGemini ? 1000 : 3000) : // Overloaded: 1s for Gemini, 3s for Claude
+            (isGemini ? 300 : 1000);    // Normal: 300ms for Gemini, 1s for Claude
           const delay = baseDelay * Math.pow(2, attempt);
           console.log(`Retrying ${coordinate} after ${delay}ms delay...`);
           await new Promise(resolve => setTimeout(resolve, delay));

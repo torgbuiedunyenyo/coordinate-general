@@ -71,7 +71,8 @@
 .coordinatePlaneContainer {
   display: flex;
   justify-content: center;
-  margin-bottom: 2rem;
+  margin-top: 45px; /* Space for top label that extends -35px above plane */
+  margin-bottom: 45px; /* Space for bottom label that extends -35px below plane */
 }
 
 .coordinatePlane {

@@ -126,7 +126,7 @@
 }
 
 .submitButton {
-  width: 100%;
+  flex: 1;
   padding: 1rem;
   background-color: var(--ink-blue);
   color: white;
@@ -173,6 +173,51 @@
   margin: 0.5rem 0;
 }
 
+/* Submit Section Styles */
+.submitSection {
+  display: flex;
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.modelSelect {
+  padding: 0.75rem 1rem;
+  padding-right: 2.5rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 1rem;
+  background: white;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1.25em 1.25em;
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color 0.2s;
+  min-width: 200px;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+.modelSelect:hover {
+  border-color: var(--ink-blue);
+}
+
+.modelSelect:focus {
+  outline: none;
+  border-color: var(--ink-blue);
+}
+
+/* Style the option elements */
+.modelSelect option {
+  padding: 0.5rem;
+  background: white;
+  color: var(--ink);
+  font-family: 'Inter', -apple-system, sans-serif;
+}
+
 @media (max-width: 768px) {
   .adjectivesGrid {
     grid-template-columns: 1fr;
@@ -188,5 +233,17 @@
   
   .form {
     padding: 1.5rem;
+  }
+  
+  .submitSection {
+    flex-direction: column;
+  }
+  
+  .modelSelect {
+    width: 100%;
+  }
+  
+  .submitButton {
+    width: 100%;
   }
 }
