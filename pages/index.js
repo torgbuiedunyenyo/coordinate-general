@@ -1,10 +1,13 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/router';
+import { requireAuth } from '../utils/authManager';
 
 export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
+    // Check authentication first
+    requireAuth();
     router.replace('/setup');
   }, [router]);
 

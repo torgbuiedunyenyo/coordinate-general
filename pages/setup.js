@@ -5,6 +5,7 @@ import Link from 'next/link';
 import styles from '../styles/Setup.module.css';
 import { sessionManager } from '../utils/sessionManager';
 import { validatePromptInputs } from '../utils/promptBuilder';
+import { requireAuth } from '../utils/authManager';
 
 export default function Setup() {
   const router = useRouter();
@@ -45,6 +46,9 @@ export default function Setup() {
 
   // Load existing session data on mount to pre-fill the form
   useEffect(() => {
+    // Check authentication first
+    requireAuth();
+    
     const session = sessionManager.loadSession();
     if (session) {
       // Pre-fill form with existing session values

@@ -9,6 +9,7 @@ import {
   getCacheKeyForStep, 
   calculateGenerationPlan
 } from '../utils/filterCacheManager';
+import { requireAuth } from '../utils/authManager';
 
 export default function Filters() {
   const [originalText, setOriginalText] = useState('');
@@ -51,6 +52,9 @@ export default function Filters() {
 
   // Load session on mount
   useEffect(() => {
+    // Check authentication first
+    requireAuth();
+    
     const session = filterSessionManager.loadSession();
     if (session && session.filterStackInitialized) {
       setOriginalText(session.originalText || '');

@@ -6,6 +6,8 @@ import styles from '../styles/Bridge.module.css';
 import { bridgeSessionManager } from '../utils/bridgeSessionManager';
 import { buildBridgePrompt } from '../utils/bridgePromptBuilder';
 import { getPositionDependencies } from '../utils/bridgeGenerator';
+import { useMobileDetect } from '../utils/mobileDetection';
+import { requireAuth } from '../utils/authManager';
 
 export default function BridgeExplore() {
   const router = useRouter();
@@ -15,8 +17,12 @@ export default function BridgeExplore() {
   const [session, setSession] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [storageWarning, setStorageWarning] = useState(null);
+  const { isMobile, isTablet } = useMobileDetect();
 
   useEffect(() => {
+    // Check authentication first
+    requireAuth();
+    
     // Load session
     const loadedSession = bridgeSessionManager.loadSession();
 
@@ -258,9 +264,52 @@ export default function BridgeExplore() {
             Start Over
           </button>
           <div className={styles.instructions}>
-            Use the slider or arrow keys to explore the bridge between texts
+            {isMobile || isTablet 
+              ? 'Use the slider or tap the position buttons to explore the bridge'
+              : 'Use the slider or arrow keys to explore the bridge between texts'}
           </div>
         </div>
+        
+        {/* Mobile Position Buttons */}
+        {(isMobile || isTablet) && (
+          <div className={styles.mobilePositionControls}>
+            <h3 className={styles.mobileControlsTitle}>Quick Jump to Position</h3>
+            <div className={styles.positionButtonGrid}>
+              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((pos) => (
+                <button
+                  key={pos}
+                  className={`${styles.positionButton} ${
+                    currentPosition === pos ? styles.positionButtonActive : ''
+                  } ${
+                    session?.positions[pos] ? styles.positionButtonComplete : ''
+                  }`}
+                  onClick={() => {
+                    setCurrentPosition(pos);
+                    updateText(pos);
+                  }}
+                  aria-label={`Jump to position ${pos}`}
+                >
+                  <span className={styles.positionButtonLabel}>
+                    {pos === 0 ? 'A' : pos === 10 ? 'B' : pos === 5 ? 'M' : pos}
+                  </span>
+                  {session?.positions[pos] && (
+                    <span className={styles.positionButtonCheck}>✓</span>
+                  )}
+                </button>
+              ))}
+            </div>
+            <div className={styles.positionLegend}>
+              <span className={styles.legendItem}>
+                <span className={styles.legendDot} style={{background: 'var(--ink-blue)'}}></span>
+                Generated
+              </span>
+              <span className={styles.legendItem}>
+                <span className={styles.legendDot} style={{background: 'var(--border)'}}></span>
+                Not Generated
+              </span>
+            </div>
+          </div>
+        )}
 
         <div className={styles.infoBox}>
           <h3>Bridge Positions:</h3>

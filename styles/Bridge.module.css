@@ -810,3 +810,133 @@
     display: none;
   }
 }
+
+/* Mobile Position Controls */
+.mobilePositionControls {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.mobileControlsTitle {
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+  color: var(--ink);
+  text-align: center;
+  font-family: 'Inter', -apple-system, sans-serif;
+}
+
+.positionButtonGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 400px) {
+  .positionButtonGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.positionButton {
+  position: relative;
+  padding: 1rem 0.5rem;
+  background: white;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60px;
+}
+
+.positionButton:hover {
+  border-color: var(--ink-blue);
+  background: var(--hover);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.positionButton:active {
+  transform: translateY(0);
+}
+
+.positionButtonActive {
+  background: var(--ink-blue);
+  color: white;
+  border-color: var(--ink-blue);
+}
+
+.positionButtonActive:hover {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.positionButtonComplete {
+  border-color: var(--ink-blue);
+  color: var(--ink);
+}
+
+.positionButtonLabel {
+  font-size: 1.1rem;
+}
+
+.positionButtonCheck {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 0.8rem;
+  color: #51cf66;
+  font-weight: bold;
+}
+
+.positionLegend {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.legendDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* Improve slider for mobile */
+@media (max-width: 768px) {
+  .slider {
+    height: 40px;
+  }
+  
+  .slider::-webkit-slider-thumb {
+    width: 30px;
+    height: 30px;
+  }
+  
+  .slider::-moz-range-thumb {
+    width: 30px;
+    height: 30px;
+  }
+}
