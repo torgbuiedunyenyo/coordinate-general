@@ -657,3 +657,304 @@
     width: 100%;
   }
 }
+
+/* Mobile Container and Layout */
+.mobileContainer {
+  min-height: 100vh;
+  background-color: var(--paper);
+  display: flex;
+  flex-direction: column;
+}
+
+.mobileLayout {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  gap: 1rem;
+}
+
+/* Mobile Preview Section */
+.mobilePreview {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.mobilePreview .previewHeader {
+  padding: 1rem;
+  background: var(--hover);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mobilePreview .previewHeader h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: var(--ink);
+}
+
+.mobilePreview .textPreview {
+  padding: 1.5rem;
+  min-height: 200px;
+  max-height: 300px;
+  overflow-y: auto;
+  font-family: 'Crimson Text', Georgia, serif;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+/* Mobile Layers Section */
+.mobileLayers {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.mobilePanelHeader {
+  padding: 1rem;
+  background: var(--hover);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: 'Inter', -apple-system, sans-serif;
+}
+
+.mobilePanelHeader h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--ink);
+}
+
+.mobileEmptyState {
+  padding: 2rem;
+  text-align: center;
+  color: var(--muted);
+}
+
+.mobileEmptyState p {
+  margin-bottom: 1rem;
+  font-family: 'Inter', -apple-system, sans-serif;
+}
+
+.addFilterBtn {
+  padding: 0.75rem 1.5rem;
+  background: var(--ink-blue);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.addFilterBtn:hover {
+  background: var(--ink);
+}
+
+/* Mobile Layers List */
+.mobileLayersList {
+  padding: 1rem;
+}
+
+.mobileLayer {
+  background: var(--hover);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 0.75rem;
+  overflow: hidden;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.mobileLayer.generating {
+  border-color: var(--ink-blue);
+  background: #f0f7ff;
+}
+
+.mobileLayer.complete {
+  border-color: #51cf66;
+}
+
+.mobileLayerHeader {
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.mobileLayerControls {
+  padding: 1rem;
+  background: white;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.intensityControl {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-family: 'Inter', -apple-system, sans-serif;
+}
+
+.intensityControl label {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.intensitySelect {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: 'Inter', -apple-system, sans-serif;
+  background: white;
+}
+
+.mobileRemoveBtn {
+  padding: 0.5rem 1rem;
+  background: var(--ink-red);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.mobileRemoveBtn:hover {
+  background: #b91c1c;
+}
+
+.mobileMoveBtn {
+  padding: 0.5rem 1rem;
+  background: var(--hover);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mobileMoveBtn:hover {
+  background: white;
+  border-color: var(--ink-blue);
+}
+
+/* Mobile Filter Selection Modal */
+.mobileFilterModal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.mobileFilterModalContent {
+  background: white;
+  border-radius: 8px;
+  max-width: 500px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.mobileFilterModalHeader {
+  padding: 1rem;
+  background: var(--hover);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mobileFilterModalHeader h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: var(--ink);
+  font-family: 'Inter', -apple-system, sans-serif;
+}
+
+.closeModalBtn {
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.closeModalBtn:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.mobileFilterGrid {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.mobileFilterButton {
+  padding: 1rem;
+  background: white;
+  border: 2px solid var(--border);
+  border-radius: 6px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mobileFilterButton:hover {
+  border-color: var(--ink-blue);
+  background: var(--hover);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.mobileFilterButton .filterIcon {
+  font-size: 1.5rem;
+}
+
+.mobileFilterButton .filterName {
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.mobileFilterButton .filterDescription {
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 0.85rem;
+  color: var(--muted);
+}

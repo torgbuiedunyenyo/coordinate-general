@@ -9,6 +9,7 @@ import {
   getCacheKeyForStep, 
   calculateGenerationPlan
 } from '../utils/filterCacheManager';
+import { useMobileDetect } from '../utils/mobileDetection';
 import { requireAuth } from '../utils/authManager';
 
 export default function Filters() {
@@ -27,9 +28,12 @@ export default function Filters() {
   const [dragOverIndex, setDragOverIndex] = useState(null);
   const [draggedFilter, setDraggedFilter] = useState(null);
   const [isDraggingOverLayers, setIsDraggingOverLayers] = useState(false);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [selectedLayerForMobile, setSelectedLayerForMobile] = useState(null);
   const generationQueueRef = useRef([]);
   const isGeneratingRef = useRef(false);
   const abortControllerRef = useRef(null);
+  const { isMobile, isTablet } = useMobileDetect();
 
   // Model configurations
   const models = [
@@ -566,9 +570,9 @@ export default function Filters() {
     );
   }
 
-  // Main filter interface (Photoshop-like)
+  // Main filter interface (Photoshop-like for desktop, stacked for mobile)
   return (
-    <div className={styles.photoshopContainer}>
+    <div className={isMobile || isTablet ? styles.mobileContainer : styles.photoshopContainer}>
       <Head>
         <title>Filter Stack - Text Transformer</title>
       </Head>
@@ -598,9 +602,182 @@ export default function Filters() {
         </button>
       </nav>
       
-      <div className={styles.mainLayout}>
-        {/* Left Panel - Layers */}
-        <div className={styles.layersPanel}>
+      <div className={isMobile || isTablet ? styles.mobileLayout : styles.mainLayout}>
+        {/* Mobile View - Stacked Layout */}
+        {(isMobile || isTablet) ? (
+          <>
+            {/* Text Preview for Mobile */}
+            <div className={styles.mobilePreview}>
+              <div className={styles.previewHeader}>
+                <h2>Preview</h2>
+                <div className={styles.modelInfo}>
+                  {selectedModel.replace('-', ' ').replace('4.5', ' 4.5').toUpperCase()}
+                </div>
+              </div>
+              <div className={styles.textPreview}>
+                {currentDisplayText || 'Your text will appear here...'}
+              </div>
+              {generationQueueRef.current.length > 0 && (
+                <div className={styles.generationStatus}>
+                  <div className={styles.generatingIcon}>⟳</div>
+                  Generating {generationQueueRef.current.length} transformation{generationQueueRef.current.length > 1 ? 's' : ''}...
+                </div>
+              )}
+            </div>
+
+            {/* Mobile Layers Section */}
+            <div className={styles.mobileLayers}>
+              <div className={styles.mobilePanelHeader}>
+                <h3>Active Filters ({layers.length})</h3>
+                <span className={styles.tokenInfo}>
+                  {costEstimate.formatted}
+                </span>
+              </div>
+              
+              {layers.length === 0 ? (
+                <div className={styles.mobileEmptyState}>
+                  <p>No filters applied yet</p>
+                  <button 
+                    className={styles.addFilterBtn}
+                    onClick={() => setShowMobileFilters(true)}
+                  >
+                    + Add Filter
+                  </button>
+                </div>
+              ) : (
+                <div className={styles.mobileLayersList}>
+                  {layers.map((layer, index) => {
+                    const status = getLayerStatus(layer);
+                    return (
+                      <div
+                        key={layer.key}
+                        className={`${styles.mobileLayer} ${styles[status]}`}
+                        onClick={() => setSelectedLayerForMobile(selectedLayerForMobile === layer.id ? null : layer.id)}
+                      >
+                        <div className={styles.mobileLayerHeader}>
+                          <input
+                            type="checkbox"
+                            checked={layer.enabled}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              toggleLayer(layer.id);
+                            }}
+                            className={styles.layerCheckbox}
+                          />
+                          <span className={styles.layerIcon}>{layer.icon}</span>
+                          <span className={styles.layerName}>{layer.name}</span>
+                          <div className={styles.layerStatus}>
+                            {status === 'generating' && <span className={styles.spinner}>⟳</span>}
+                            {status === 'complete' && <span className={styles.check}>✓</span>}
+                            {status === 'pending' && <span className={styles.pending}>○</span>}
+                          </div>
+                        </div>
+                        
+                        {selectedLayerForMobile === layer.id && layer.enabled && (
+                          <div className={styles.mobileLayerControls}>
+                            <div className={styles.intensityControl}>
+                              <label>Intensity:</label>
+                              <select
+                                value={layer.intensity}
+                                onChange={(e) => changeLayerIntensity(layer.id, e.target.value)}
+                                className={styles.intensitySelect}
+                              >
+                                <option value="25">25%</option>
+                                <option value="50">50%</option>
+                                <option value="75">75%</option>
+                                <option value="100">100%</option>
+                              </select>
+                            </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeLayer(layer.id);
+                              }}
+                              className={styles.mobileRemoveBtn}
+                            >
+                              Remove Filter
+                            </button>
+                            {index > 0 && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const newLayers = [...layers];
+                                  [newLayers[index - 1], newLayers[index]] = [newLayers[index], newLayers[index - 1]];
+                                  setLayers(newLayers);
+                                  saveSessionAndRegenerate(newLayers);
+                                }}
+                                className={styles.mobileMoveBtn}
+                              >
+                                ↑ Move Up
+                              </button>
+                            )}
+                            {index < layers.length - 1 && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const newLayers = [...layers];
+                                  [newLayers[index], newLayers[index + 1]] = [newLayers[index + 1], newLayers[index]];
+                                  setLayers(newLayers);
+                                  saveSessionAndRegenerate(newLayers);
+                                }}
+                                className={styles.mobileMoveBtn}
+                              >
+                                ↓ Move Down
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  <button 
+                    className={styles.addFilterBtn}
+                    onClick={() => setShowMobileFilters(true)}
+                  >
+                    + Add Another Filter
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Mobile Filter Selection Modal */}
+            {showMobileFilters && (
+              <div className={styles.mobileFilterModal}>
+                <div className={styles.mobileFilterModalContent}>
+                  <div className={styles.mobileFilterModalHeader}>
+                    <h3>Available Filters</h3>
+                    <button 
+                      onClick={() => setShowMobileFilters(false)}
+                      className={styles.closeModalBtn}
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <div className={styles.mobileFilterGrid}>
+                    {availableFilters.map(filter => (
+                      <button
+                        key={filter.id}
+                        onClick={() => {
+                          addLayer(filter);
+                          setShowMobileFilters(false);
+                        }}
+                        className={styles.mobileFilterButton}
+                      >
+                        <span className={styles.filterIcon}>{filter.icon}</span>
+                        <span className={styles.filterName}>{filter.name}</span>
+                        <span className={styles.filterDescription}>{filter.description}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          /* Desktop View - Original Photoshop-like Layout */
+          <>
+            {/* Left Panel - Layers */}
+            <div className={styles.layersPanel}>
           <div className={styles.panelHeader}>
             <h2>Layers</h2>
             <span className={styles.tokenInfo}>
@@ -703,27 +880,29 @@ export default function Filters() {
           </div>
         </div>
         
-        {/* Right Panel - Text Preview */}
-        <div className={styles.previewPanel}>
-          <div className={styles.previewHeader}>
-            <h2>Preview</h2>
-            <div className={styles.modelInfo}>
-              {selectedModel.replace('-', ' ').replace('4.5', ' 4.5').toUpperCase()}
+            {/* Right Panel - Text Preview */}
+            <div className={styles.previewPanel}>
+              <div className={styles.previewHeader}>
+                <h2>Preview</h2>
+                <div className={styles.modelInfo}>
+                  {selectedModel.replace('-', ' ').replace('4.5', ' 4.5').toUpperCase()}
+                </div>
+              </div>
+              
+              <div className={styles.textPreview}>
+                {currentDisplayText || 'Your text will appear here...'}
+              </div>
+              
+              {/* Generation Status */}
+              {generationQueueRef.current.length > 0 && (
+                <div className={styles.generationStatus}>
+                  <div className={styles.generatingIcon}>⟳</div>
+                  Generating {generationQueueRef.current.length} transformation{generationQueueRef.current.length > 1 ? 's' : ''}...
+                </div>
+              )}
             </div>
-          </div>
-          
-          <div className={styles.textPreview}>
-            {currentDisplayText || 'Your text will appear here...'}
-          </div>
-          
-          {/* Generation Status */}
-          {generationQueueRef.current.length > 0 && (
-            <div className={styles.generationStatus}>
-              <div className={styles.generatingIcon}>⟳</div>
-              Generating {generationQueueRef.current.length} transformation{generationQueueRef.current.length > 1 ? 's' : ''}...
-            </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
     </div>
   );
