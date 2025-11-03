@@ -10,10 +10,10 @@ export default function handler(req, res) {
   }
 
   // Get the password from environment variable
-  const appPassword = process.env['front-password'];
+  const appPassword = process.env['front_password'];
 
   if (!appPassword) {
-    console.error('front-password not configured in .env.local');
+    console.error('front_password not configured in .env.local');
     return res.status(500).json({ error: 'Password not configured' });
   }
 
