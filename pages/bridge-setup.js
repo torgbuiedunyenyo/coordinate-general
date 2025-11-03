@@ -5,6 +5,7 @@ import Link from 'next/link';
 import styles from '../styles/Bridge.module.css';
 import { bridgeSessionManager } from '../utils/bridgeSessionManager';
 import { validateBridgeInputs } from '../utils/bridgePromptBuilder';
+import { requireAuth } from '../utils/authManager';
 
 export default function BridgeSetup() {
   const router = useRouter();
@@ -40,6 +41,9 @@ export default function BridgeSetup() {
 
   // Load existing session data on mount
   useEffect(() => {
+    // Check authentication first
+    requireAuth();
+    
     const session = bridgeSessionManager.loadSession();
     if (session) {
       // Pre-fill form with existing session values

@@ -10,6 +10,7 @@ import {
   getPositionDependencies, 
   getTotalPositionsUpToRound 
 } from '../utils/bridgeGenerator';
+import { requireAuth } from '../utils/authManager';
 
 export default function BridgeGenerate() {
   const router = useRouter();
@@ -23,6 +24,9 @@ export default function BridgeGenerate() {
   const isGeneratingRef = useRef(false);
 
   useEffect(() => {
+    // Check authentication first
+    requireAuth();
+    
     // Load session
     const loadedSession = bridgeSessionManager.loadSession();
 

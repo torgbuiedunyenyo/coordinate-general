@@ -359,3 +359,123 @@
     display: none;
   }
 }
+
+/* Mobile Navigation Controls */
+.mobileControls {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: var(--hover);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.toggleControlsBtn {
+  width: 100%;
+  padding: 0.75rem;
+  background: var(--ink-blue);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-bottom: 1rem;
+}
+
+.toggleControlsBtn:hover {
+  background: var(--ink);
+}
+
+.mobileNavSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.mobileNavPad {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.navButton {
+  width: 60px;
+  height: 60px;
+  background: white;
+  border: 2px solid var(--ink-blue);
+  border-radius: 8px;
+  font-size: 24px;
+  font-weight: bold;
+  color: var(--ink-blue);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.navButton:hover:not(:disabled) {
+  background: var(--ink-blue);
+  color: white;
+  transform: scale(1.05);
+}
+
+.navButton:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.navButton:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+.navMiddleRow {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.navCenter {
+  background: var(--hover);
+}
+
+.mobileInstructions {
+  padding: 1rem;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.95rem;
+  font-family: 'Inter', -apple-system, sans-serif;
+}
+
+.mobileInstructions p {
+  margin: 0;
+}
+
+/* Make grid larger on mobile for easier tapping */
+@media (max-width: 768px) {
+  .coordinatePlaneContainer {
+    padding: 1rem;
+  }
+  
+  .coordinatePlane {
+    width: min(90vw, 400px);
+    height: min(90vw, 400px);
+  }
+  
+  .circle {
+    width: 24px;
+    height: 24px;
+    border-width: 3px;
+  }
+}

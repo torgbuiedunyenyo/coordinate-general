@@ -5,6 +5,8 @@ import Link from 'next/link';
 import styles from '../styles/Home.module.css';
 import Footer from '../public/Footer';
 import { sessionManager } from '../utils/sessionManager';
+import { useMobileDetect } from '../utils/mobileDetection';
+import { requireAuth } from '../utils/authManager';
 
 export default function Explore() {
   const router = useRouter();
@@ -17,8 +19,13 @@ export default function Explore() {
   const [session, setSession] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [storageWarning, setStorageWarning] = useState(null);
+  const { isMobile, isTablet } = useMobileDetect();
+  const [showMobileControls, setShowMobileControls] = useState(false);
 
   useEffect(() => {
+    // Check authentication first
+    requireAuth();
+    
     // Load session
     const loadedSession = sessionManager.loadSession();
 
@@ -429,6 +436,132 @@ export default function Explore() {
             Current Position: ({currentSquare})
           </p>
         </div>
+
+        {/* Mobile Navigation Controls */}
+        {(isMobile || isTablet) && (
+          <div className={styles.mobileControls}>
+            <button 
+              className={styles.toggleControlsBtn}
+              onClick={() => setShowMobileControls(!showMobileControls)}
+            >
+              {showMobileControls ? 'Hide' : 'Show'} Navigation Helper
+            </button>
+            
+            {showMobileControls && (
+              <div className={styles.mobileNavSection}>
+                <div className={styles.mobileNavPad}>
+                  <button 
+                    className={`${styles.navButton} ${styles.navUp}`}
+                    onClick={() => {
+                      const [col, row] = currentSquare.split(",").map(Number);
+                      if (row < 5) {
+                        const newCoord = `${col},${row + 1}`;
+                        setCurrentSquare(newCoord);
+                        updateText(newCoord);
+                        if (circleRef.current && coordinatePlaneRef.current) {
+                          const squareSize = 300 / 11;
+                          const circle = circleRef.current;
+                          const x = (col + 5) * squareSize + squareSize / 2 - circle.offsetWidth / 2;
+                          const y = (5 - (row + 1)) * squareSize + squareSize / 2 - circle.offsetHeight / 2;
+                          circle.style.transform = `translate(${x}px, ${y}px)`;
+                        }
+                      }
+                    }}
+                    disabled={currentSquare.split(",")[1] === "5"}
+                  >
+                    ↑
+                  </button>
+                  <div className={styles.navMiddleRow}>
+                    <button 
+                      className={`${styles.navButton} ${styles.navLeft}`}
+                      onClick={() => {
+                        const [col, row] = currentSquare.split(",").map(Number);
+                        if (col > -5) {
+                          const newCoord = `${col - 1},${row}`;
+                          setCurrentSquare(newCoord);
+                          updateText(newCoord);
+                          if (circleRef.current && coordinatePlaneRef.current) {
+                            const squareSize = 300 / 11;
+                            const circle = circleRef.current;
+                            const x = (col - 1 + 5) * squareSize + squareSize / 2 - circle.offsetWidth / 2;
+                            const y = (5 - row) * squareSize + squareSize / 2 - circle.offsetHeight / 2;
+                            circle.style.transform = `translate(${x}px, ${y}px)`;
+                          }
+                        }
+                      }}
+                      disabled={currentSquare.split(",")[0] === "-5"}
+                    >
+                      ←
+                    </button>
+                    <button 
+                      className={`${styles.navButton} ${styles.navCenter}`}
+                      onClick={() => {
+                        const newCoord = "0,0";
+                        setCurrentSquare(newCoord);
+                        updateText(newCoord);
+                        if (circleRef.current && coordinatePlaneRef.current) {
+                          const squareSize = 300 / 11;
+                          const circle = circleRef.current;
+                          const x = 5 * squareSize + squareSize / 2 - circle.offsetWidth / 2;
+                          const y = 5 * squareSize + squareSize / 2 - circle.offsetHeight / 2;
+                          circle.style.transform = `translate(${x}px, ${y}px)`;
+                        }
+                      }}
+                    >
+                      ⌖
+                    </button>
+                    <button 
+                      className={`${styles.navButton} ${styles.navRight}`}
+                      onClick={() => {
+                        const [col, row] = currentSquare.split(",").map(Number);
+                        if (col < 5) {
+                          const newCoord = `${col + 1},${row}`;
+                          setCurrentSquare(newCoord);
+                          updateText(newCoord);
+                          if (circleRef.current && coordinatePlaneRef.current) {
+                            const squareSize = 300 / 11;
+                            const circle = circleRef.current;
+                            const x = (col + 1 + 5) * squareSize + squareSize / 2 - circle.offsetWidth / 2;
+                            const y = (5 - row) * squareSize + squareSize / 2 - circle.offsetHeight / 2;
+                            circle.style.transform = `translate(${x}px, ${y}px)`;
+                          }
+                        }
+                      }}
+                      disabled={currentSquare.split(",")[0] === "5"}
+                    >
+                      →
+                    </button>
+                  </div>
+                  <button 
+                    className={`${styles.navButton} ${styles.navDown}`}
+                    onClick={() => {
+                      const [col, row] = currentSquare.split(",").map(Number);
+                      if (row > -5) {
+                        const newCoord = `${col},${row - 1}`;
+                        setCurrentSquare(newCoord);
+                        updateText(newCoord);
+                        if (circleRef.current && coordinatePlaneRef.current) {
+                          const squareSize = 300 / 11;
+                          const circle = circleRef.current;
+                          const x = (col + 5) * squareSize + squareSize / 2 - circle.offsetWidth / 2;
+                          const y = (5 - (row - 1)) * squareSize + squareSize / 2 - circle.offsetHeight / 2;
+                          circle.style.transform = `translate(${x}px, ${y}px)`;
+                        }
+                      }
+                    }}
+                    disabled={currentSquare.split(",")[1] === "-5"}
+                  >
+                    ↓
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            <div className={styles.mobileInstructions}>
+              <p>💡 <strong>Tip:</strong> Tap anywhere on the grid to jump directly to that variation!</p>
+            </div>
+          </div>
+        )}
 
         <Footer />
       </main>

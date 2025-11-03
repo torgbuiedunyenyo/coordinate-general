@@ -5,6 +5,7 @@ import Link from 'next/link';
 import styles from '../styles/Generate.module.css';
 import { sessionManager } from '../utils/sessionManager';
 import { getRingCoordinates, getRingNumber } from '../utils/ringGenerator';
+import { requireAuth } from '../utils/authManager';
 
 export default function Generate() {
   const router = useRouter();
@@ -19,6 +20,9 @@ export default function Generate() {
   const sessionIdRef = useRef(null);
 
   useEffect(() => {
+    // Check authentication first
+    requireAuth();
+    
     // Load session
     const loadedSession = sessionManager.loadSession();
 
