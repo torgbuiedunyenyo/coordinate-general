@@ -10,6 +10,7 @@ import {
   getPositionDependencies, 
   getTotalPositionsUpToRound 
 } from '../utils/bridgeGenerator';
+import { perfMonitor } from '../utils/performanceMonitor';
 import { requireAuth } from '../utils/authManager';
 
 export default function BridgeGenerate() {
@@ -92,6 +93,7 @@ export default function BridgeGenerate() {
 
   const generateBridge = async (sessionData) => {
     try {
+      perfMonitor.startSession(); // Start performance monitoring
       bridgeSessionManager.updateProgress({ status: 'generating' });
       
       const existingPositions = sessionData.positions || {};
@@ -120,6 +122,7 @@ export default function BridgeGenerate() {
         }
       }
 
+      perfMonitor.endSession(); // End performance monitoring
       bridgeSessionManager.updateProgress({ status: 'complete', currentRound: 4 });
       
     } catch (err) {
@@ -137,13 +140,20 @@ export default function BridgeGenerate() {
     });
     setGenerationStatus(prev => ({ ...prev, ...newStatus }));
 
-    // Model-specific batch sizes
-    const batchSize = sessionData.selectedModel === 'gemini-2.5-flash' ? 4 : 
-                     sessionData.selectedModel === 'sonnet-4.5' ? 2 : 1;
+    // Model-specific batch sizes - increased for better performance
+    const isGemini = sessionData.selectedModel === 'gemini-2.5-flash';
+    const isHaiku = sessionData.selectedModel === 'haiku-4.5';
+    const isSonnet = sessionData.selectedModel === 'sonnet-4.5';
+    
+    const batchSize = isGemini ? 8 :     // Increased from 4
+                     isSonnet ? 4 :      // Increased from 2
+                     isHaiku ? 6 : 3;    // Increased from 1!
     
     // Process positions in batches
     for (let i = 0; i < positionsToGenerate.length; i += batchSize) {
       const batch = positionsToGenerate.slice(i, i + batchSize);
+      
+      const batchMonitor = perfMonitor.startBatch(batch.length, `Round ${roundNumber}`);
       
       // Mark as generating
       const generatingStatus = {};
@@ -157,10 +167,10 @@ export default function BridgeGenerate() {
         batch.map(pos => generatePosition(pos, sessionData))
       );
       
-      // Small delay between batches to avoid overloading
-      if (i + batchSize < positionsToGenerate.length) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
+      batchMonitor.end();
+      
+      // No artificial delay - modern APIs handle their own rate limiting
+      // Removed 500ms delay to improve generation speed
     }
   };
 
@@ -181,6 +191,8 @@ export default function BridgeGenerate() {
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
+        const apiMonitor = perfMonitor.startApiCall(`Position ${position}`);
+        
         const response = await fetch('/api/generate-single', {
           method: 'POST',
           headers: {
@@ -201,6 +213,8 @@ export default function BridgeGenerate() {
 
         const result = await response.json();
         
+        apiMonitor.end(); // End API monitoring
+        
         // Store in sessionStorage
         bridgeSessionManager.updatePosition(position, result.text);
         
@@ -218,9 +232,18 @@ export default function BridgeGenerate() {
         if (attempt < maxRetries - 1) {
           const isOverloaded = error.message?.includes('Overloaded');
           const isGemini = sessionData.selectedModel === 'gemini-2.5-flash';
+          const isHaiku = sessionData.selectedModel === 'haiku-4.5';
+          const isSonnet = sessionData.selectedModel === 'sonnet-4.5';
+          
           const baseDelay = isOverloaded ? 
-            (isGemini ? 1000 : 3000) :
-            (isGemini ? 300 : 1000);
+            (isGemini ? 500 :       // Reduced from 1000ms
+             isHaiku ? 1000 :       // Reduced from 3000ms
+             isSonnet ? 1500 :      // Reduced from 3000ms
+             3000) :
+            (isGemini ? 100 :       // Reduced from 300ms
+             isHaiku ? 200 :        // Reduced from 1000ms
+             isSonnet ? 300 :       // Reduced from 1000ms
+             1000);
           const delay = baseDelay * Math.pow(2, attempt);
           console.log(`Retrying position ${position} after ${delay}ms delay...`);
           await new Promise(resolve => setTimeout(resolve, delay));

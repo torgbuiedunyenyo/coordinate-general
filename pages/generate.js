@@ -5,6 +5,7 @@ import Link from 'next/link';
 import styles from '../styles/Generate.module.css';
 import { sessionManager } from '../utils/sessionManager';
 import { getRingCoordinates, getRingNumber } from '../utils/ringGenerator';
+import { perfMonitor } from '../utils/performanceMonitor';
 import { requireAuth } from '../utils/authManager';
 
 export default function Generate() {
@@ -96,6 +97,7 @@ export default function Generate() {
 
   const continueGeneration = async (sessionData) => {
     try {
+      perfMonitor.startSession(); // Start performance monitoring
       sessionManager.updateProgress({ status: 'generating' });
       
       const existingGenerations = sessionData.generations || {};
@@ -121,6 +123,7 @@ export default function Generate() {
         }
       }
 
+      perfMonitor.endSession(); // End performance monitoring
       sessionManager.updateProgress({ status: 'complete', currentRing: 5 });
       
     } catch (err) {
@@ -147,13 +150,20 @@ export default function Generate() {
     setGenerationStatus(prev => ({ ...prev, ...newStatus }));
 
     // Model-specific batch sizes for optimal performance
-    // Gemini 2.5 Flash can handle 1000 RPM (~16/sec), so 10 concurrent is very safe
-    // Claude models are more conservative with rate limits
-    const batchSize = sessionData.selectedModel === 'gemini-2.5-flash' ? 10 : 
-                     sessionData.selectedModel === 'sonnet-4.5' ? 3 : 2;
+    // Gemini 2.5 Flash can handle 1000 RPM (~16/sec), so 15 concurrent is safe
+    // Claude models have higher limits than previously assumed
+    const isGemini = sessionData.selectedModel === 'gemini-2.5-flash';
+    const isHaiku = sessionData.selectedModel === 'haiku-4.5';
+    const isSonnet = sessionData.selectedModel === 'sonnet-4.5';
+    
+    const batchSize = isGemini ? 15 :    // Increased from 10
+                     isSonnet ? 6 :      // Increased from 3
+                     isHaiku ? 8 : 5;    // Increased from 2
     
     for (let i = 0; i < coordinates.length; i += batchSize) {
       const batch = coordinates.slice(i, i + batchSize);
+      
+      const batchMonitor = perfMonitor.startBatch(batch.length, `Ring ${ringNumber}`);
       
       // Mark as generating
       const generatingStatus = {};
@@ -166,6 +176,8 @@ export default function Generate() {
       await Promise.all(
         batch.map(coord => generateCoordinate(coord, sessionData))
       );
+      
+      batchMonitor.end();
 
       // No artificial delay between batches - let the API handle rate limiting
       // Modern APIs like Gemini 2.5 Flash can handle rapid requests
@@ -192,6 +204,8 @@ export default function Generate() {
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
+        const apiMonitor = perfMonitor.startApiCall(coordinate);
+        
         const response = await fetch('/api/generate-single', {
           method: 'POST',
           headers: {
@@ -212,6 +226,8 @@ export default function Generate() {
 
         const result = await response.json();
         
+        apiMonitor.end(); // End API monitoring
+        
         // Store in sessionStorage
         sessionManager.updateGeneration(coordinate, result.text);
         
@@ -228,11 +244,20 @@ export default function Generate() {
         // Exponential backoff with model-specific delays
         if (attempt < maxRetries - 1) {
           const isOverloaded = error.message?.includes('Overloaded');
-          // Faster retries for Gemini, more conservative for Claude models
+          // Optimized retries for different models
           const isGemini = sessionData.selectedModel === 'gemini-2.5-flash';
+          const isHaiku = sessionData.selectedModel === 'haiku-4.5';
+          const isSonnet = sessionData.selectedModel === 'sonnet-4.5';
+          
           const baseDelay = isOverloaded ? 
-            (isGemini ? 1000 : 3000) : // Overloaded: 1s for Gemini, 3s for Claude
-            (isGemini ? 300 : 1000);    // Normal: 300ms for Gemini, 1s for Claude
+            (isGemini ? 500 :       // Reduced from 1000ms
+             isHaiku ? 1000 :       // Reduced from 3000ms
+             isSonnet ? 1500 :      // Reduced from 3000ms
+             3000) :
+            (isGemini ? 100 :       // Reduced from 300ms
+             isHaiku ? 200 :        // Reduced from 1000ms
+             isSonnet ? 300 :       // Reduced from 1000ms
+             1000);
           const delay = baseDelay * Math.pow(2, attempt);
           console.log(`Retrying ${coordinate} after ${delay}ms delay...`);
           await new Promise(resolve => setTimeout(resolve, delay));
