@@ -1,7 +1,8 @@
 // Real provider integration test. Start the built app with its intended credentials first.
 import assert from 'node:assert/strict';
 const base = process.env.SMOKE_BASE_URL || 'http://127.0.0.1:3312';
-for (const selectedModel of ['haiku-4.5', 'sonnet-4.5']) {
+const models = process.env.SMOKE_MODELS?.split(',') || ['haiku-4.5', 'sonnet-4.5', 'gemini-2.5-flash'];
+for (const selectedModel of models) {
   const response = await fetch(`${base}/api/generate-single`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ mode: 'bridge', textLeft: 'A quiet morning by the sea.', textRight: 'A lively evening in the city.', selectedModel }), signal: AbortSignal.timeout(120000) });
   assert.equal(response.status, 200, `${selectedModel}: HTTP ${response.status}`);
   const result = await response.json();

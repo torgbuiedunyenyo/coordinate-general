@@ -311,3 +311,8 @@ For issues, questions, or suggestions:
 ---
 
 **Note**: This application requires valid API keys and has associated costs based on usage. Monitor your API usage to manage expenses.
+### Personal provider migration (October 2026)
+
+Production uses personal Anthropic and Google Gemini keys. Saved model-selection IDs remain compatible: `sonnet-4.5` calls Claude Sonnet 4.6 and `gemini-2.5-flash` calls Gemini 3.8 Flash. Google no longer admits new users to Gemini 2.5 Flash. The Gemini request omits sampling parameters unsupported by 3.8. Earlier model pricing and quota examples above are historical estimates, not current provider guarantees.
+
+Set `ANTHROPIC_API_KEY` and `GOOGLE_API_KEY` privately before starting the app. `node scripts/account-migration-smoke.mjs` verifies all three real provider routes against `SMOKE_BASE_URL`; it does not write application data.

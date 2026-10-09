@@ -49,7 +49,7 @@ export default function Filters() {
     },
     {
       id: 'gemini-2.5-flash',
-      name: 'Gemini 2.5 Flash',
+      name: 'Gemini 3.8 Flash',
       provider: 'google'
     }
   ];

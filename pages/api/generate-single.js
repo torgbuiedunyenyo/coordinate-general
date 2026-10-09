@@ -20,7 +20,8 @@ const MODEL_CONFIGS = {
   },
   'gemini-2.5-flash': {
     provider: 'google',
-    model: 'gemini-2.5-flash',
+    // Preserve saved selection IDs while using the model available to the personal account.
+    model: 'gemini-3.8-flash',
     maxTokens: 8192  // Increased token limit for Gemini
   }
 };
@@ -80,11 +81,7 @@ async function callGeminiAPI(prompt, modelConfig) {
       }
     ],
     generationConfig: {
-      maxOutputTokens: modelConfig.maxTokens,
-      temperature: 0.7,
-      candidateCount: 1,
-      topK: 40,
-      topP: 0.95
+      maxOutputTokens: modelConfig.maxTokens
     }
   };
   

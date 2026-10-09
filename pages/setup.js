@@ -38,7 +38,7 @@ export default function Setup() {
     },
     {
       id: 'gemini-2.5-flash',
-      name: 'Gemini 2.5 Flash',
+      name: 'Gemini 3.8 Flash',
       description: 'Google\'s fast multimodal model',
       provider: 'google'
     }
