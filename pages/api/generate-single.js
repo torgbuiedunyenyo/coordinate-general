@@ -14,7 +14,8 @@ const MODEL_CONFIGS = {
   },
   'sonnet-4.5': {
     provider: 'anthropic',
-    model: 'claude-sonnet-4-5-20250929',
+    // Keep the selection ID compatible with existing saved sessions.
+    model: 'claude-sonnet-4-6',
     maxTokens: 1000
   },
   'gemini-2.5-flash': {

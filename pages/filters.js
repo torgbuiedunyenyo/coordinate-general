@@ -44,7 +44,7 @@ export default function Filters() {
     },
     {
       id: 'sonnet-4.5',
-      name: 'Claude Sonnet 4.5',
+      name: 'Claude Sonnet 4.6',
       provider: 'anthropic'
     },
     {

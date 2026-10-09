@@ -32,7 +32,7 @@ export default function Setup() {
     },
     {
       id: 'sonnet-4.5',
-      name: 'Claude Sonnet 4.5',
+      name: 'Claude Sonnet 4.6',
       description: 'Advanced reasoning ($3/$15 per M tokens)',
       provider: 'anthropic'
     },
